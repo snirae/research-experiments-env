@@ -162,7 +162,7 @@ class Backbone(nn.Module):
         return (z_res + z_mlp).permute(0,2,1)
 
 class PatchMixer(nn.Module):
-    def __init__(self, enc_in=7, seq_len=96, pred_len=96):
+    def __init__(self, enc_in=13, seq_len=96, pred_len=96):
         super(PatchMixer, self).__init__()
         self.rev = RevIN(enc_in)
 

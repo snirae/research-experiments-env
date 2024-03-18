@@ -96,7 +96,8 @@ class Experiment:
         print(f"Splitting the dataset with validation split: {args.val_split}")
         val_size = int(args.val_split * len(self.dataset))
         train_size = len(self.dataset) - val_size
-        self.train_dataset, self.val_dataset = random_split(self.dataset, [train_size, val_size])
+        self.train_dataset, self.val_dataset = random_split(self.dataset, [train_size, val_size]) ## allow for and additional predefined split
+        
 
         # dataloaders
         print(f"Creating dataloaders with batch size: {args.batch_size}, num workers: {args.num_workers}")

@@ -7,12 +7,16 @@ import pandas as pd
 import subprocess
 
 
-def count_lines(file_path):
-    result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
-    output = result.stdout.decode().strip()
-    num_lines = int(output.split()[0])
+# def count_lines(file_path):
+#     result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
+#     output = result.stdout.decode().strip()
+#     num_lines = int(output.split()[0])
 
-    return num_lines
+#     return num_lines
+
+def count_lines(file_path):
+    temp = pd.read_csv(file_path)
+    return temp.shape[0]
     
 
 class ForecastingDataset(Dataset):
@@ -23,20 +27,25 @@ class ForecastingDataset(Dataset):
         
         self.chunksize = lookback + horizon
         self.length = count_lines(data_path) - self.horizon - self.lookback
+        self.data = pd.read_csv(self.data_path)
+        time_cols = [col for col in self.data.columns if self.data[col].dtype == pd.Timestamp]
+        if time_cols:
+            self.data = self.data.drop(columns=time_cols)
+        
 
     def __len__(self):
         return self.length
 
     def __getitem__(self, idx):
-        chunk = pd.read_csv(self.data_path, skiprows=idx, nrows=self.chunksize)
+        # chunk = pd.read_csv(self.data_path, skiprows=idx, nrows=self.chunksize)
 
-        # remove the date column if it exists
-        time_cols = [col for col in chunk.columns if chunk[col].dtype == pd.Timestamp]
-        if time_cols:
-            chunk = chunk.drop(columns=time_cols)
+        # # remove the date column if it exists
+        # time_cols = [col for col in chunk.columns if chunk[col].dtype == pd.Timestamp]
+        # if time_cols:
+        #     chunk = chunk.drop(columns=time_cols)
 
-        x = chunk[:self.lookback].values
-        y = chunk[self.lookback:].values
+        x = self.data[idx:idx+self.lookback].values
+        y = self.data[idx+self.lookback:idx+self.chunksize].values
 
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.float32)
     
