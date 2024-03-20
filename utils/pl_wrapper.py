@@ -45,6 +45,16 @@ class TrainWrapper(pl.LightningModule):
         self.log("val_loss", loss)
 
         return loss
+    
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+
+        loss = self.loss_fn(y_hat, y)
+
+        self.log("test_loss", loss)
+
+        return loss
 
     def configure_optimizers(self):
         if self.optimizer == "adam":

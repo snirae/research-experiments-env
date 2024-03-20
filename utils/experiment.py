@@ -10,7 +10,7 @@ import json
 from utils.pl_wrapper import TrainWrapper
 from utils.dataset import ForecastingDataset, ImputationDataset
 
-from torch.utils.data import DataLoader, random_split, ConcatDataset
+from torch.utils.data import DataLoader, random_split, ConcatDataset, Subset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
@@ -77,14 +77,15 @@ class Experiment:
         if args.task == "forecasting":
             print(f"Creating forecasting datasets with lookback: {args.lookback}, horizon: {args.horizon}")
             datasets = [ForecastingDataset(data_path=os.path.join(args.data_path, file),
-                                           lookback=args.lookback, horizon=args.horizon)
+                                           lookback=args.lookback, horizon=args.horizon,
+                                           gap=args.gap)
                                            for file in os.listdir(args.data_path) if file.endswith(".csv")]
 
         elif args.task == "imputation":
-            print(f"Creating imputation datasets with lookback: {args.lookback}, mask_prob: {args.mask_prob}")
+            print(f"Creating imputation datasets with lookback: {args.lookback}, mask_perc: {args.mask_perc}")
             datasets = [ImputationDataset(data_path=os.path.join(args.data_path, file),
-                                           lookback=args.lookback, mask_prob=args.mask_prob)
-                                           for file in os.listdir(args.data_path) if file.endswith(".csv")]
+                                          lookback=args.lookback, mask_perc=args.mask_perc)
+                                          for file in os.listdir(args.data_path) if file.endswith(".csv")]
         else:
             raise ValueError(f"Task '{args.task}' not supported")
         
@@ -92,19 +93,34 @@ class Experiment:
         print(f"Combining {len(datasets)} datasets")
         self.dataset = ConcatDataset(datasets)
 
-        # splitting the dataset
-        print(f"Splitting the dataset with validation split: {args.val_split}")
-        val_size = int(args.val_split * len(self.dataset))
-        train_size = len(self.dataset) - val_size
-        self.train_dataset, self.val_dataset = random_split(self.dataset, [train_size, val_size]) ## allow for and additional predefined split
-        
+        print(f"Total length of the dataset: {len(self.dataset)}")
 
+        # splitting the dataset
+        print(f"Splitting the dataset with validation split: {args.val_split} and test split: {args.test_split}")
+        
+        val_size = int(args.val_split * len(self.dataset))
+        test_size = int(args.test_split * len(self.dataset))
+        train_size = len(self.dataset) - val_size - test_size
+
+        train_idxs = list(range(train_size))
+        val_idxs = list(range(train_size, train_size + val_size))
+        test_idxs = list(range(train_size + val_size, len(self.dataset)))
+
+        self.train_dataset = Subset(self.dataset, train_idxs)
+        self.val_dataset = Subset(self.dataset, val_idxs)
+        self.test_dataset = Subset(self.dataset, test_idxs)
+
+        # self.train_dataset, self.val_dataset, self.test_dataset = random_split(self.dataset,
+        #                                                                       [train_size, val_size, test_size])
+        
         # dataloaders
         print(f"Creating dataloaders with batch size: {args.batch_size}, num workers: {args.num_workers}")
         self.train_loader = DataLoader(self.train_dataset, batch_size=args.batch_size,
                                        num_workers=args.num_workers, shuffle=True)
         self.val_loader = DataLoader(self.val_dataset, batch_size=args.batch_size,
                                      num_workers=args.num_workers, shuffle=False)
+        self.test_loader = DataLoader(self.test_dataset, batch_size=args.batch_size,
+                                      num_workers=args.num_workers, shuffle=False)
         
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
@@ -144,9 +160,12 @@ class Experiment:
 
     def train(self):
         self.trainer.fit(self.wrapper, self.train_loader, self.val_loader)
+
+    def test(self):
+        self.trainer.test(self.wrapper, self.test_loader)
     
     def run(self):
-        print("Starting the experiment...")
+        print("\n\nStarting the experiment...")
         print(f"Training the model '{self.args.model_name}' on the task '{self.args.task}'")
         print(f"Using the datasets from '{self.args.data_path}'")
         print(f"Using the models from '{self.args.models_path}'")
@@ -157,4 +176,12 @@ class Experiment:
 
         self.train()
 
-        print("Experiment finished.")
+        print("Training finished.")
+
+        print("\n\nTesting the model...")
+        
+        self.test()
+
+        print("Testing finished.")
+
+        print("\nExperiment finished.")

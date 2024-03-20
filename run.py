@@ -20,11 +20,13 @@ if __name__ == "__main__":
 
     # data
     parser.add_argument("--val-split", type=float, default=0.1, help="Proportion of the data to use for validation")
+    parser.add_argument("--test-split", type=float, default=0.1, help="Proportion of the data to use for testing")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training")
     parser.add_argument("--num-workers", type=int, default=4, help="Number of workers for data loading")
     parser.add_argument("--lookback", type=int, default=96, help="Number of time steps to look back")
     parser.add_argument("--horizon", type=int, default=96, help="Number of time steps to forecast (for forecasting task)")
-    parser.add_argument("--mask-prob", type=float, default=0.1, help="Probability of masking the data (for imputation task)")
+    parser.add_argument("--gap", type=int, default=0, help="Gap to forecast after (for forecasting task)")
+    parser.add_argument("--mask-perc", type=float, default=0.1, help="Percentage of the data to mask (for imputation task)")
 
     # training
     parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
