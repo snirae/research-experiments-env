@@ -1,0 +1,5 @@
+{
+    "enc_in": 7,
+    "seq_len": 96,
+    "pred_len": 96
+}

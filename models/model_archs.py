@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.fft
@@ -178,5 +177,6 @@ class PatchMixer(nn.Module):
         z = self.backbone(z) # B, L, D -> B, H, D
         z = self.rev(z, 'denorm') # B, L, D -> B, H, D
         return z
+
 
 

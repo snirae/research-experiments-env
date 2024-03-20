@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 import random
+import json
 
 from utils.pl_wrapper import TrainWrapper
 from utils.dataset import ForecastingDataset, ImputationDataset
@@ -52,10 +53,9 @@ class Experiment:
         np.random.seed(fix_seed)
 
         # model parameters
-        model_params = {}
-        for param in args.model_params:
-            key, value = param.split("=")
-            model_params[key] = value
+        print(f"Loading model parameters from '{args.model_config}'")
+        with open(args.model_config, "r") as file:
+            model_params = json.load(file)  # load the model parameters from the config file as a dictionary
         
         # model
         combine_files(args.models_path)
