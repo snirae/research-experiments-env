@@ -89,29 +89,32 @@ class Experiment:
         else:
             raise ValueError(f"Task '{args.task}' not supported")
         
+        # splitting the datasets
+        print(f"Splitting the datasets with validation split: {args.val_split}")
+
+        trains, vals = [], []
+        for dataset in datasets:
+            val_size = int(args.val_split * len(dataset))
+            train_size = len(dataset) - val_size
+
+            val_size = int(args.val_split * len(dataset))
+            train_size = len(dataset) - val_size
+
+            train_idxs = list(range(train_size))
+            val_idxs = list(range(train_size, len(dataset)))
+
+            train = Subset(dataset, train_idxs)
+            val = Subset(dataset, val_idxs)
+
+            trains.append(train)
+            vals.append(val)
+
         # combining datasets
         print(f"Combining {len(datasets)} datasets")
-        self.dataset = ConcatDataset(datasets)
+        self.train_dataset = ConcatDataset(trains)
+        self.val_dataset = ConcatDataset(vals)
 
-        print(f"Total length of the dataset: {len(self.dataset)}")
-
-        # splitting the dataset
-        print(f"Splitting the dataset with validation split: {args.val_split} and test split: {args.test_split}")
-        
-        val_size = int(args.val_split * len(self.dataset))
-        test_size = int(args.test_split * len(self.dataset))
-        train_size = len(self.dataset) - val_size - test_size
-
-        train_idxs = list(range(train_size))
-        val_idxs = list(range(train_size, train_size + val_size))
-        test_idxs = list(range(train_size + val_size, len(self.dataset)))
-
-        self.train_dataset = Subset(self.dataset, train_idxs)
-        self.val_dataset = Subset(self.dataset, val_idxs)
-        self.test_dataset = Subset(self.dataset, test_idxs)
-
-        # self.train_dataset, self.val_dataset, self.test_dataset = random_split(self.dataset,
-        #                                                                       [train_size, val_size, test_size])
+        print(f"Total length of the datasets: {len(self.train_dataset) + len(self.val_dataset)}")
         
         # dataloaders
         print(f"Creating dataloaders with batch size: {args.batch_size}, num workers: {args.num_workers}")
@@ -119,8 +122,6 @@ class Experiment:
                                        num_workers=args.num_workers, shuffle=True)
         self.val_loader = DataLoader(self.val_dataset, batch_size=args.batch_size,
                                      num_workers=args.num_workers, shuffle=False)
-        self.test_loader = DataLoader(self.test_dataset, batch_size=args.batch_size,
-                                      num_workers=args.num_workers, shuffle=False)
         
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
@@ -162,7 +163,7 @@ class Experiment:
         self.trainer.fit(self.wrapper, self.train_loader, self.val_loader)
 
     def test(self):
-        self.trainer.test(self.wrapper, self.test_loader)
+        pass
     
     def run(self):
         print("\n\nStarting the experiment...")
@@ -178,10 +179,10 @@ class Experiment:
 
         print("Training finished.")
 
-        print("\n\nTesting the model...")
+        # print("\n\nTesting the model...")
         
-        self.test()
+        # self.test()
 
-        print("Testing finished.")
+        # print("Testing finished.")
 
         print("\nExperiment finished.")
