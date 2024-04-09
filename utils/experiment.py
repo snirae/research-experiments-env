@@ -16,28 +16,17 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 
-def combine_files(directory):
-    # empty the combined file
-    with open("./models/model_archs.py", "w") as combined_file:
-        combined_file.write("")
-    
-    combined_content = ""
-    for filename in os.listdir(directory):
-        if filename.endswith(".py"):
-            with open(os.path.join(directory, filename), "r") as file:
-                combined_content += file.read() + "\n"
-
-    with open("./models/model_archs.py", "w") as combined_file:
-        combined_file.write(combined_content)
-
-
 def load_model(model_name):
-    import models.model_archs as model_archs
+    # import the file containing the model class
+    try:
+        model_module = __import__(f"models.{model_name}", fromlist=[""])
+    except ImportError:
+        raise ImportError(f"Model '{model_name}' not found")
+    
+    # get the model class from the module
+    model_class = getattr(model_module, model_name)
 
-    if hasattr(model_archs, model_name):
-        return getattr(model_archs, model_name)
-    else:
-        raise AttributeError(f"Model class '{model_name}' not found in the combined models file.")
+    return model_class
 
 
 class Experiment:
@@ -58,10 +47,10 @@ class Experiment:
             model_params = json.load(file)  # load the model parameters from the config file as a dictionary
         
         # model
-        combine_files(args.models_path)
+        model_class = load_model(args.model_name)
 
         print(f"Creating model '{args.model_name}' with parameters: {model_params}")
-        self.model = load_model(args.model_name)(**model_params)
+        self.model = model_class(**model_params)
 
         # training wrapper
         print(f"Creating training wrapper with losses: {args.losses}, optimizer: {args.optimizer}, lr: {args.lr}, weight_decay: {args.weight_decay}")

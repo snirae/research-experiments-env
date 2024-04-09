@@ -8,7 +8,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pretraining script")
 
     ##### Required arguments #####
-    parser.add_argument("--model-name", type=str, help="Name of the model to use, as defined in the implementation")
+    parser.add_argument("--model-name", type=str, help="Name of the model to use, as defined in the filename and implementation")
     parser.add_argument("--model-config", type=str, default='./models/config.json', help="Path to the model configuration file (JSON)")
     parser.add_argument("--models-path", type=str, default="./models", help="Path to the models directory")
     parser.add_argument("--data-path", type=str, default="./data", help="Path to the data directory")
