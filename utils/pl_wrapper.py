@@ -35,7 +35,7 @@ class TrainWrapper(pl.LightningModule):
 
         loss = self.loss_fn(y_hat, y)
 
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, prog_bar=True)
 
         return loss
 
@@ -45,7 +45,7 @@ class TrainWrapper(pl.LightningModule):
 
         loss = self.loss_fn(y_hat, y)
 
-        self.log("val_loss", loss)
+        self.log("val_loss", loss, prog_bar=True)
 
         return loss
     
