@@ -12,6 +12,9 @@ class TrainWrapper(pl.LightningModule):
         self.lr = lr
         self.weight_decay = weight_decay
 
+        self.test_predictions = []
+        self.test_targets = []
+
         self.losses = []
         for loss in losses:
             if loss.lower() == "mse":
@@ -53,6 +56,9 @@ class TrainWrapper(pl.LightningModule):
         loss = self.loss_fn(y_hat, y)
 
         self.log("test_loss", loss)
+
+        self.test_predictions.extend(y_hat.detach().cpu().numpy())
+        self.test_targets.extend(y.detach().cpu().numpy())
 
         return loss
 

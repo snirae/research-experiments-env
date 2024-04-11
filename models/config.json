@@ -1,7 +1,5 @@
 {
     "enc_in": 7,
     "seq_len": 96,
-    "pred_len": 96,
-    "d_model": 512,
-    "patch_len": 16
+    "pred_len": 96
 }

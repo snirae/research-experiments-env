@@ -2,13 +2,15 @@
 
 import torch
 import numpy as np
-import pandas as pd
 import os
 import random
 import json
+import matplotlib.pyplot as plt
 
 from utils.pl_wrapper import TrainWrapper
 from utils.dataset import ForecastingDataset, ImputationDataset
+
+from testing.plotting import plot_runs_comparison
 
 from torch.utils.data import DataLoader, random_split, ConcatDataset, Subset
 from pytorch_lightning import Trainer
@@ -112,6 +114,28 @@ class Experiment:
         self.val_loader = DataLoader(self.val_dataset, batch_size=args.batch_size,
                                      num_workers=args.num_workers, shuffle=False)
         
+        # test data
+        if args.test:
+            if args.task == "forecasting":
+                print(f"Creating test datasets with lookback: {args.lookback}, horizon: {args.horizon}")
+                test_datasets = [ForecastingDataset(data_path=os.path.join(args.test_data, file),
+                                                    lookback=args.lookback, horizon=args.horizon,
+                                                    gap=args.gap)
+                                                    for file in os.listdir(args.test_data) if file.endswith(".csv")]
+            elif args.task == "imputation":
+                print(f"Creating test datasets with lookback: {args.lookback}, mask_perc: {args.mask_perc}")
+                test_datasets = [ImputationDataset(data_path=os.path.join(args.test_data, file),
+                                                  lookback=args.lookback, mask_perc=args.mask_perc)
+                                                  for file in os.listdir(args.test_data) if file.endswith(".csv")]
+            
+            print(f"Combining {len(test_datasets)} test datasets")
+            self.test_dataset = ConcatDataset(test_datasets)
+            
+            print(f"Total length of the test dataset: {len(self.test_dataset)}")
+            
+            self.test_loader = DataLoader(self.test_dataset, batch_size=args.batch_size,
+                                         num_workers=args.num_workers, shuffle=False)
+
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
         callbacks = []
@@ -152,26 +176,48 @@ class Experiment:
         self.trainer.fit(self.wrapper, self.train_loader, self.val_loader)
 
     def test(self):
-        pass
-    
+        self.trainer.test(self.wrapper, self.test_loader)
+
+        LOOKBACKS = 5
+
+        forecast = np.array(self.wrapper.test_predictions)
+        forecast = forecast[range(0, min(len(forecast), self.args.lookback*LOOKBACKS), self.args.lookback)]  # (num_samples, lookback, features))]
+        forecast = forecast.reshape(-1, forecast.shape[-1])
+
+        targets = np.array(self.wrapper.test_targets)
+        targets = targets[range(0, min(len(targets), self.args.lookback*LOOKBACKS), self.args.lookback)]  # (num_samples, lookback, features)
+        targets = targets.reshape(-1, targets.shape[-1])
+        
+        # plotting
+        if self.args.save_plots:
+            print("Saving the forecasting plots...")
+            plot_runs_comparison([{"label": targets, "forecast": forecast}],
+                                 save_dir=self.args.log_dir, name=self.args.model_name)
+        else:
+            print("Plotting the forecasting results...")
+            plot_runs_comparison([{"label": targets, "forecast": forecast}])
+
     def run(self):
         print("\n\nStarting the experiment...")
         print(f"Training the model '{self.args.model_name}' on the task '{self.args.task}'")
         print(f"Using the datasets from '{self.args.data_path}'")
         print(f"Using the models from '{self.args.models_path}'")
         print(f"Logging to '{self.args.logger}'")
-        print(f"Saving models to '{self.args.save_dir}'")
-        print(f"Training for {self.args.max_epochs} epochs")
-        print()
 
-        self.train()
+        if self.args.train:
+            print(f"Saving models to '{self.args.save_dir}'")
+            print(f"Training for {self.args.max_epochs} epochs")
+            print()
 
-        print("Training finished.")
+            self.train()
 
-        # print("\n\nTesting the model...")
-        
-        # self.test()
+            print("Training finished.")
 
-        # print("Testing finished.")
+        if self.args.test:
+            print("\n\nTesting the model...")
+            
+            self.test()
+
+            print("Testing finished.")
 
         print("\nExperiment finished.")
