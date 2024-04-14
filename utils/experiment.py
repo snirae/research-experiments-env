@@ -191,8 +191,12 @@ class Experiment:
         # plotting
         if self.args.save_plots:
             print("Saving the forecasting plots...")
+
+            if not os.path.exists(f'{self.args.log_dir}/plots'):
+                os.makedirs(f'{self.args.log_dir}/plots')
+                
             plot_runs_comparison([{"label": targets, "forecast": forecast}], lookback_size=self.args.lookback,
-                                 save_dir=self.args.log_dir, name=self.args.model_name)
+                                 save_dir=f'{self.args.log_dir}/plots', name=self.args.model_name)
         else:
             print("Plotting the forecasting results...")
             plot_runs_comparison([{"label": targets, "forecast": forecast}], lookback_size=self.args.lookback)

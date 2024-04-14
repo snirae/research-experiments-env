@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--mask-perc", type=float, default=0.1, help="Percentage of the data to mask (for imputation task)")
 
     # training
-    parser.add_argument("--train", type=bool, default=True, help="Whether to train the model")
+    parser.add_argument("--train", type=int, default=1, help="Whether to train the model (0-False, 1-True)")
     parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="Weight decay")
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--losses", nargs='+', default=["mse"], help="Loss functions to use")
 
     # callbacks
-    parser.add_argument("--early-stopping", type=bool, default=True, help="Whether to use early stopping")
+    parser.add_argument("--early-stopping", type=int, default=1, help="Whether to use early stopping (0-False, 1-True)")
     parser.add_argument("--patience", type=int, default=5, help="Patience for early stopping")
     parser.add_argument("--min-improvement", type=float, default=0.01, help="Minimum improvement for early stopping")
     
@@ -50,9 +50,9 @@ if __name__ == "__main__":
     parser.add_argument("--save-dir", type=str, default="./checkpoints", help="Directory to save models")
 
     # testing
-    parser.add_argument("--test", type=bool, default=True, help="Whether to test the model")
+    parser.add_argument("--test", type=int, default=1, help="Whether to test the model (0-False, 1-True)")
     parser.add_argument("--test-data", type=str, default='./testing/data', help="Path to the test data directory")
-    parser.add_argument("--save-plots", type=bool, default=True, help="Whether to save forecasting/imputation plots")
+    parser.add_argument("--save-plots", type=int, default=1, help="Whether to save forecasting/imputation plots (0-False, 1-True)")
 
     # hardware
     parser.add_argument("--accelerator", type=str, default="auto", help="Device to use for training")
@@ -61,6 +61,12 @@ if __name__ == "__main__":
     ####################################################################################################################
     
     args = parser.parse_args()
+
+    # cast boolean arguments
+    args.train = bool(args.train)
+    args.early_stopping = bool(args.early_stopping)
+    args.test = bool(args.test)
+    args.save_plots = bool(args.save_plots)
 
     # running the experiment
     exp = Experiment(args)
