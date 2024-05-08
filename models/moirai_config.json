@@ -1,0 +1,5 @@
+{
+"prediction_length": 96,
+"context_length": 200, 
+"patch_size": "auto"
+}

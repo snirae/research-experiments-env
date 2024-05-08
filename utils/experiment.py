@@ -19,14 +19,17 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from models.nf_models import load_model
+from utils.lora import lora_finetune
+from huggingface_hub import hf_hub_download
+from uni2ts.model.moirai import MoiraiForecast
+
 
 
 class Experiment:
     def __init__(self, args):
         self.args = args
         
-        # random seed
-        fix_seed = args.seed
+        fix_seed = args.seed # random seed
 
         print(f"setting random seed to {fix_seed}")
         random.seed(fix_seed)
@@ -38,11 +41,35 @@ class Experiment:
         with open(args.model_config, "r") as file:
             model_params = json.load(file)  # load the model parameters from the config file as a dictionary
         
+        
         # model
-        model_class = load_model(args.model_name)
+        if args.model_name.lower() == "moirai":
+            size = "small"
+            model = MoiraiForecast.load_from_checkpoint(
+                checkpoint_path=hf_hub_download(
+                    repo_id=f"Salesforce/moirai-1.0-R-{size}", filename="model.ckpt"
+                ),
+                prediction_length=model_params['prediction_length'],
+                context_length=model_params['context_length'],
+                patch_size=model_params['patch_size'],
+                num_samples=1,
+                target_dim=2,
+                # feat_dynamic_real_dim=ds.num_feat_dynamic_real,
+                # past_feat_dynamic_real_dim=ds.num_past_feat_dynamic_real,
+                # map_location="cuda:0" if torch.cuda.is_available() else "cpu",
+                )
+            
+            self.model = lora_finetune(model)
 
-        print(f"Creating model '{args.model_name}' with parameters: {model_params}")
-        self.model = model_class(**model_params)
+            print(self.model)
+            
+            raise NotImplementedError("Moirai model is not yet supported")
+
+        else:
+            model_class = load_model(args.model_name)
+
+            print(f"Creating model '{args.model_name}' with parameters: {model_params}")
+            self.model = model_class(**model_params)
 
         # training wrapper
         print(f"Creating training wrapper with losses: {args.losses}, optimizer: {args.optimizer}, lr: {args.lr}, weight_decay: {args.weight_decay}")
@@ -169,6 +196,7 @@ class Experiment:
 
     def train(self):
         self.trainer.fit(self.wrapper, self.train_loader, self.val_loader)
+
 
     def test(self):
         self.trainer.test(self.wrapper, self.test_loader)
