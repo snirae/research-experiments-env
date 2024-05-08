@@ -2,6 +2,7 @@
 
 import torch
 import numpy as np
+import pandas as pd
 import os
 import random
 import json
@@ -17,18 +18,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
-
-def load_model(model_name):
-    # import the file containing the model class
-    try:
-        model_module = __import__(f"models.{model_name}", fromlist=[""])
-    except ImportError:
-        raise ImportError(f"Model '{model_name}' not found")
-    
-    # get the model class from the module
-    model_class = getattr(model_module, model_name)
-
-    return model_class
+from models.nf_models import load_model
 
 
 class Experiment:
@@ -63,6 +53,11 @@ class Experiment:
             args.lr,
             args.weight_decay
         )
+
+        # loading checkpoint
+        if args.ckpt_path:
+            print(f"Loading model from checkpoint '{args.ckpt_path}'")
+            self.wrapper.load_from_checkpoint(args.ckpt_path)
 
         # data
         if args.task == "forecasting":
@@ -205,7 +200,6 @@ class Experiment:
         print("\n\nStarting the experiment...")
         print(f"Training the model '{self.args.model_name}' on the task '{self.args.task}'")
         print(f"Using the datasets from '{self.args.data_path}'")
-        print(f"Using the models from '{self.args.models_path}'")
         print(f"Logging to '{self.args.logger}'")
 
         if self.args.train:
