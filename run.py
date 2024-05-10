@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-name", type=str, help="Name of the model to use, as defined in the filename and implementation")
     parser.add_argument("--model-config", type=str, default='./models/config.json', help="Path to the model configuration file (JSON)")
     parser.add_argument("--ckpt-path", type=str, default="", help="Path to a checkpoint to load the model from")
-    parser.add_argument("--data-path", type=str, default="./data", help="Path to the data directory")
+    parser.add_argument("--data-path", type=str, default="./data", help="Path to the dataset file")
     parser.add_argument("--task", type=str, default="forecasting", help="Task to train the model on")
 
     ##### Optional arguments #####

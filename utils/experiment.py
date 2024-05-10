@@ -87,47 +87,49 @@ class Experiment:
             self.wrapper.load_from_checkpoint(args.ckpt_path)
 
         # data
-        if args.task == "forecasting":
-            print(f"Creating forecasting datasets with lookback: {args.lookback}, horizon: {args.horizon}")
-            datasets = [ForecastingDataset(data_path=os.path.join(args.data_path, file),
-                                           lookback=args.lookback, horizon=args.horizon,
-                                           gap=args.gap)
-                                           for file in os.listdir(args.data_path) if file.endswith(".csv")]
+        # if args.task == "forecasting":
+        #     print(f"Creating forecasting datasets with lookback: {args.lookback}, horizon: {args.horizon}")
+        #     datasets = [ForecastingDataset(data_path=os.path.join(args.data_path, file),
+        #                                    lookback=args.lookback, horizon=args.horizon,
+        #                                    gap=args.gap)
+        #                                    for file in os.listdir(args.data_path) if file.endswith(".csv")]
 
-        elif args.task == "imputation":
-            print(f"Creating imputation datasets with lookback: {args.lookback}, mask_perc: {args.mask_perc}")
-            datasets = [ImputationDataset(data_path=os.path.join(args.data_path, file),
-                                          lookback=args.lookback, mask_perc=args.mask_perc)
-                                          for file in os.listdir(args.data_path) if file.endswith(".csv")]
-        else:
-            raise ValueError(f"Task '{args.task}' not supported")
+        # elif args.task == "imputation":
+        #     print(f"Creating imputation datasets with lookback: {args.lookback}, mask_perc: {args.mask_perc}")
+        #     datasets = [ImputationDataset(data_path=os.path.join(args.data_path, file),
+        #                                   lookback=args.lookback, mask_perc=args.mask_perc)
+        #                                   for file in os.listdir(args.data_path) if file.endswith(".csv")]
+        # else:
+        #     raise ValueError(f"Task '{args.task}' not supported")
         
         # splitting the datasets
-        print(f"Splitting the datasets with validation split: {args.val_split}")
+        # print(f"Splitting the datasets with validation split: {args.val_split}")
 
-        trains, vals = [], []
-        for dataset in datasets:
-            val_size = int(args.val_split * len(dataset))
-            train_size = len(dataset) - val_size
+        # trains, vals = [], []
+        # for dataset in datasets:
+        #     val_size = int(args.val_split * len(dataset))
+        #     train_size = len(dataset) - val_size
 
-            val_size = int(args.val_split * len(dataset))
-            train_size = len(dataset) - val_size
+        #     val_size = int(args.val_split * len(dataset))
+        #     train_size = len(dataset) - val_size
 
-            train_idxs = list(range(train_size))
-            val_idxs = list(range(train_size, len(dataset)))
+        #     train_idxs = list(range(train_size))
+        #     val_idxs = list(range(train_size, len(dataset)))
 
-            train = Subset(dataset, train_idxs)
-            val = Subset(dataset, val_idxs)
+        #     train = Subset(dataset, train_idxs)
+        #     val = Subset(dataset, val_idxs)
 
-            trains.append(train)
-            vals.append(val)
+        #     trains.append(train)
+        #     vals.append(val)
 
-        # combining datasets
-        print(f"Combining {len(datasets)} datasets")
-        self.train_dataset = ConcatDataset(trains)
-        self.val_dataset = ConcatDataset(vals)
+        # # combining datasets
+        # print(f"Combining {len(datasets)} datasets")
+        # self.train_dataset = ConcatDataset(trains)
+        # self.val_dataset = ConcatDataset(vals)
 
-        print(f"Total length of the datasets: {len(self.train_dataset) + len(self.val_dataset)}")
+        # print(f"Total length of the datasets: {len(self.train_dataset) + len(self.val_dataset)}")
+        
+        # dataset from file
         
         # dataloaders
         print(f"Creating dataloaders with batch size: {args.batch_size}, num workers: {args.num_workers}")
