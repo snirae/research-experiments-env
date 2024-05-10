@@ -26,6 +26,8 @@ from gluonts import maybe
 from gluonts.dataset.common import DataEntry
 from gluonts.itertools import Map, StarMap, SizedIterable
 
+from datasets import load_dataset, Dataset
+
 logger = logging.getLogger(__name__)
 
 
@@ -363,3 +365,31 @@ def is_uniform(index: pd.PeriodIndex) -> bool:
     """
 
     return cast(bool, np.all(np.diff(index.asi8) == index.freq.n))
+
+def get_dataset(source, dataset_path = None, dataset_name=None, arrow_file_path=None):
+    if source == "huggingface":
+        if dataset_name is None:
+            raise ValueError("dataset_name must be provided when using Hugging Face Hub")
+        dataset = load_dataset(dataset_path, dataset_name)
+    elif source == "arrow":
+        if arrow_file_path is None:
+            raise ValueError("arrow_file_path must be provided when using Arrow file")
+        dataset = Dataset.from_file(arrow_file_path)
+    else:
+        raise ValueError("Invalid source. Choose either 'huggingface' or 'arrow'")
+
+
+    data_freq = dataset['train']['freq'][0]
+    data = dataset['train'].to_pandas()
+    data = pd.DataFrame(data)
+
+    dataset = PandasDataset.from_long_dataframe(
+    dataframe=data,
+    item_id="item_id",
+    timestamp="start",
+    target="target",
+    freq=data_freq
+    # past_feat_dynamic_real=["past_feat_dynamic_real"],
+)
+
+    return dataset
