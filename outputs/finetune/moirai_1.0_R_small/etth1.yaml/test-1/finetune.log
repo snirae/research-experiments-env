@@ -1,0 +1,25 @@
+[2024-05-10 23:54:55,264][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-10 23:55:04,654][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-10 23:55:04,656][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-10 23:55:54,348][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-10 23:55:56,041][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-10 23:55:56,042][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-10 23:56:26,103][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-10 23:56:32,096][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-10 23:56:32,096][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-10 23:59:19,575][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:01:11,625][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:01:17,112][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 00:01:17,112][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-11 00:26:05,142][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:26:18,016][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 00:26:18,017][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-11 00:30:30,955][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:30:36,479][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 00:30:36,480][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-11 00:32:53,793][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:33:01,950][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 00:33:01,951][datasets][INFO] - JAX version 0.4.27 available.
+[2024-05-11 00:36:11,523][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 00:36:17,104][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 00:36:17,105][datasets][INFO] - JAX version 0.4.27 available.

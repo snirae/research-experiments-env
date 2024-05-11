@@ -23,13 +23,10 @@ from omegaconf import DictConfig
 from torch.utils.data import Dataset, DistributedSampler
 
 from uni2ts.common import hydra_util  # noqa: hydra resolvers
-from utils.lora import lora_finetune
-
+from lora import lora_finetune
 
 class DataModule(L.LightningDataModule):
-    def __init__(
-        self, cfg: DictConfig, train_dataset: Dataset, val_dataset: Optional[Dataset]
-    ):
+    def __init__(self, cfg: DictConfig, train_dataset: Dataset, val_dataset: Optional[Dataset]):
         super().__init__()
         self.cfg = cfg
         self.train_dataset = train_dataset
@@ -37,6 +34,7 @@ class DataModule(L.LightningDataModule):
         if val_dataset is not None:
             self.val_dataset = val_dataset
             self.val_dataloader = self._val_dataloader
+
 
     def train_dataloader(self):
         sampler = (
@@ -58,6 +56,7 @@ class DataModule(L.LightningDataModule):
             sampler=sampler,
             batch_size=self.batch_size,
             num_batches_per_epoch=self.num_batches_per_epoch,
+            num_workers=4
         )
         return train_dataloader
 
@@ -79,6 +78,7 @@ class DataModule(L.LightningDataModule):
             shuffle=self.cfg.val_dataloader.shuffle if sampler is None else None,
             sampler=sampler,
             batch_size=self.batch_size,
+            num_workers=4
         )
         return val_dataloader
 
@@ -96,35 +96,31 @@ class DataModule(L.LightningDataModule):
         )
 
 
-@hydra.main(version_base="1.3", config_path="conf/finetune", config_name="default")
+@hydra.main(version_base="1.3", config_path="", config_name="default")
 def main(cfg: DictConfig):
     if cfg.tf32:
         assert cfg.trainer.precision == 32
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
 
-    model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(
-        **call(cfg.model._args_, _convert_="all"),
+    model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(**call(cfg.model._args_, _convert_="all"))
 
-    model = lora_finetune(model)
-    
-    )
+    model = lora_finetune(model).get_base_model()
+
     if cfg.compile:
         model.module.compile(mode=cfg.compile)
+    
     trainer: L.Trainer = instantiate(cfg.trainer)
-    train_dataset: Dataset = instantiate(cfg.data).load_dataset(
-        model.create_train_transform()
-    )
-    val_dataset: Optional[Dataset] = (
-        instantiate(cfg.val_data).load_dataset(model.create_val_transform)
-        if "val_data" in cfg
-        else None
-    )
+
+    train_dataset: Dataset = instantiate(cfg.data).load_dataset(model.create_train_transform())
+
+    val_dataset: Optional[Dataset] = (instantiate(cfg.val_data).load_dataset(model.create_val_transform)
+                                       if "val_data" in cfg else None)
+
     L.seed_everything(cfg.seed + trainer.logger.version, workers=True)
-    trainer.fit(
-        model,
-        datamodule=DataModule(cfg, train_dataset, val_dataset),
-    )
+    
+    
+    trainer.fit(model, datamodule=DataModule(cfg, train_dataset, val_dataset))
 
 
 if __name__ == "__main__":

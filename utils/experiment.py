@@ -22,7 +22,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from models.nf_models import load_model
 from utils.lora import lora_finetune
 from huggingface_hub import hf_hub_download
-from uni2ts.model.moirai import MoiraiForecast
+from uni2ts.model.moirai import MoiraiFinetune
 
 
 class Experiment:
@@ -45,7 +45,7 @@ class Experiment:
         # model
         if args.model_name.lower() == "moirai":
             size = "small"
-            model = MoiraiForecast.load_from_checkpoint(
+            model = MoiraiFinetune.load_from_checkpoint(
                 checkpoint_path=hf_hub_download(
                     repo_id=f"Salesforce/moirai-1.0-R-{size}", filename="model.ckpt"
                 ),
