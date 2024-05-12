@@ -2,7 +2,7 @@
   "builder_name": "generator",
   "citation": "",
   "config_name": "default",
-  "dataset_name": "ETh1_eval",
+  "dataset_name": "ETTh1_eval",
   "dataset_size": 487949,
   "description": "",
   "download_checksums": {},
