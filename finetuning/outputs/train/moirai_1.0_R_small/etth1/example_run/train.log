@@ -50,3 +50,11 @@
 [2024-05-11 19:54:26,190][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
 [2024-05-11 19:54:29,202][datasets][INFO] - PyTorch version 2.3.0 available.
 [2024-05-11 19:54:29,203][datasets][INFO] - JAX version 0.4.28 available.
+[2024-05-11 22:24:15,137][numexpr.utils][INFO] - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+[2024-05-11 22:24:15,137][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 22:24:18,323][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 22:24:18,324][datasets][INFO] - JAX version 0.4.28 available.
+[2024-05-11 22:36:10,868][numexpr.utils][INFO] - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+[2024-05-11 22:36:10,868][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-11 22:36:13,936][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-11 22:36:13,938][datasets][INFO] - JAX version 0.4.28 available.

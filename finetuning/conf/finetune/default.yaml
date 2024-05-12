@@ -2,11 +2,11 @@ hydra:
   run:
     dir: outputs/${hydra:job.name}/${hydra:runtime.choices.model}/${hydra:runtime.choices.data}/${run_name}
 defaults:
-  - model: moirai_1.0_R_small
-  - data: etth1
-  - val_data: etth1
+  - model: moirai_1.0_R_small #
+  - data: etth1 #
+  - val_data: etth1 #
   - _self_
-run_name: example_run
+run_name: example_run #
 seed: 0
 tf32: true
 compile: false  # set to mode: default, reduce-overhead, max-autotune
@@ -26,13 +26,13 @@ trainer:
       logging_interval: epoch
     - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       dirpath: ${hydra:runtime.output_dir}/checkpoints
-      monitor: val/PackedNLLLoss
+      monitor: val/PackedNRMSELoss
       save_weights_only: true
       mode: min
       save_top_k: 1
       every_n_epochs: 1
     - _target_: lightning.pytorch.callbacks.EarlyStopping
-      monitor: val/PackedNLLLoss
+      monitor: val/PackedNRMSELoss
       min_delta: 0.0
       patience: 3
       mode: min

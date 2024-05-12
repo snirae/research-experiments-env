@@ -81,13 +81,13 @@ trainer:
     logging_interval: epoch
   - _target_: lightning.pytorch.callbacks.ModelCheckpoint
     dirpath: ${hydra:runtime.output_dir}/checkpoints
-    monitor: val/PackedNLLLoss
+    monitor: val/PackedNRMSELoss
     save_weights_only: true
     mode: min
     save_top_k: 1
     every_n_epochs: 1
   - _target_: lightning.pytorch.callbacks.EarlyStopping
-    monitor: val/PackedNLLLoss
+    monitor: val/PackedNRMSELoss
     min_delta: 0.0
     patience: 3
     mode: min

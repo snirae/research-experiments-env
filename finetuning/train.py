@@ -131,7 +131,7 @@ def main(cfg: DictConfig):
 
     model: L.LightningModule = instantiate(cfg.model, _convert_="all")
 
-    # model = lora_finetune(model).get_base_model()
+    model = lora_finetune(model).get_base_model()
 
     if cfg.compile:
         model.module.compile(mode=cfg.compile)
