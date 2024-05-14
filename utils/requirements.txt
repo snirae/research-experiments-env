@@ -2,7 +2,6 @@ numpy
 pandas
 torch
 pytorch-lightning
-neuralforecast
 uni2ts
 huggingface-hub
 peft

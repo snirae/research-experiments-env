@@ -2,7 +2,6 @@
 
 import torch
 import numpy as np
-import pandas as pd
 import os
 import random
 import json
@@ -77,6 +76,21 @@ class Experiment:
         if args.ckpt_path:
             print(f"Loading model from checkpoint '{args.ckpt_path}'")
             self.wrapper.load_from_checkpoint(args.ckpt_path)
+        # data
+        if args.task == "forecasting":
+            print(f"Creating forecasting datasets with lookback: {args.lookback}, horizon: {args.horizon}")
+            datasets = [ForecastingDataset(data_path=os.path.join(args.data_path, file),
+                                           lookback=args.lookback, horizon=args.horizon,
+                                           gap=args.gap)
+                                           for file in os.listdir(args.data_path) if file.endswith(".csv")]
+
+        elif args.task == "imputation":
+            print(f"Creating imputation datasets with lookback: {args.lookback}, mask_perc: {args.mask_perc}")
+            datasets = [ImputationDataset(data_path=os.path.join(args.data_path, file),
+                                          lookback=args.lookback, mask_perc=args.mask_perc)
+                                          for file in os.listdir(args.data_path) if file.endswith(".csv")]
+        else:
+            raise ValueError(f"Task '{args.task}' not supported")
         
         # dataset
         dataset = get_dataset(source="huggingface",
@@ -172,6 +186,7 @@ class Experiment:
         print("\n\nStarting the experiment...")
         print(f"Training the model '{self.args.model_name}' on the task '{self.args.task}'")
         print(f"Using the datasets from '{self.args.data_path}'")
+        print(f"Using the models from '{self.args.models_path}'")
         print(f"Logging to '{self.args.logger}'")
 
         if self.args.train:
