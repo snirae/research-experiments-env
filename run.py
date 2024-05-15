@@ -1,6 +1,7 @@
 # A script to run the pretraining, given a model and other parameters
 
 import argparse
+import warnings
 from utils.experiment import Experiment
 
 
@@ -9,10 +10,11 @@ if __name__ == "__main__":
 
     ##### Required arguments #####
     parser.add_argument("--model-name", type=str, help="Name of the model to use, as defined in the filename and implementation")
-    parser.add_argument("--model-config", type=str, default='./models/config.json', help="Path to the model configuration file (JSON)")
+    parser.add_argument("--model-config", type=str, default='./model/config.json', help="Path to the model configuration file (JSON)")
     parser.add_argument("--ckpt-path", type=str, default="", help="Path to a checkpoint to load the model from")
-    parser.add_argument("--data-path", type=str, default="./data", help="Path to the dataset file")
-    parser.add_argument("--task", type=str, default="forecasting", help="Task to train the model on")
+    parser.add_argument("--data-path", type=str, default="./data.csv", help="Path to the dataset file")
+    parser.add_argument("--time-col", type=str, default="date", help="Name of the time column in the dataset")
+    # parser.add_argument("--task", type=str, default="forecasting", help="Task to train the model on")
 
     ##### Optional arguments #####
     # seed
@@ -20,17 +22,17 @@ if __name__ == "__main__":
 
     # data
     parser.add_argument("--val-split", type=float, default=0.1, help="Proportion of the data to use for validation")
-    parser.add_argument("--test-split", type=float, default=0.1, help="Proportion of the data to use for testing")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training")
     parser.add_argument("--num-workers", type=int, default=4, help="Number of workers for data loading")
     parser.add_argument("--lookback", type=int, default=96, help="Number of time steps to look back")
     parser.add_argument("--horizon", type=int, default=96, help="Number of time steps to forecast (for forecasting task)")
     parser.add_argument("--gap", type=int, default=0, help="Gap to forecast after (for forecasting task)")
-    parser.add_argument("--mask-perc", type=float, default=0.1, help="Percentage of the data to mask (for imputation task)")
+    # parser.add_argument("--mask-perc", type=float, default=0.1, help="Percentage of the data to mask (for imputation task)")
 
     # training
     parser.add_argument("--train", type=int, default=1, help="Whether to train the model (0-False, 1-True)")
-    parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
+    # parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
+    parser.add_argument("--max-steps", type=int, default=5000, help="Number of steps to train for")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="Weight decay")
     parser.add_argument("--optimizer", type=str, default="adam", help="Optimizer to use")
@@ -52,14 +54,16 @@ if __name__ == "__main__":
 
     # testing
     parser.add_argument("--test", type=int, default=1, help="Whether to test the model (0-False, 1-True)")
-    parser.add_argument("--test-data", type=str, default='./testing/data', help="Path to the test data directory")
-    parser.add_argument("--save-plots", type=int, default=1, help="Whether to save forecasting/imputation plots (0-False, 1-True)")
+    # parser.add_argument("--test-data", type=str, default='./testing/data', help="Path to the test data directory")
+    parser.add_argument("--test-split", type=float, default=0.1, help="Proportion of the data to use for testing")
+    parser.add_argument("--save-plots", type=int, default=1, help="Whether to save forecasting plots (0-False, 1-True)")
 
     # hardware
     parser.add_argument("--accelerator", type=str, default="auto", help="Device to use for training")
     parser.add_argument("--devices", type=int, default=1, help="Number of devices to use")
 
     ####################################################################################################################
+    warnings.filterwarnings("ignore")
     
     args = parser.parse_args()
 

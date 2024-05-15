@@ -2,7 +2,6 @@ numpy
 pandas
 torch
 pytorch-lightning
-uni2ts
-huggingface-hub
-peft
-gluonts
+neuralforecast
+datasets
+sklearn
