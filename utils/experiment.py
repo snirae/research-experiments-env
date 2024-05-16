@@ -9,7 +9,6 @@ import json
 import matplotlib.pyplot as plt
 
 from utils.dataset import load_dataset_for_nf
-from testing.plotting import plot_runs_comparison
 
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
@@ -46,7 +45,7 @@ class Experiment:
 
         # data
         print(f"Loading data from '{args.data_path}'")
-        self.train_df, self.test_df = load_dataset_for_nf(args.data_path, args.time_col)
+        self.train_df, self.test_df, self.scaler = load_dataset_for_nf(args.data_path, args.time_col)
         freq = pd.infer_freq(self.train_df['ds'].unique())  # infer frequency from the data
 
         # callbacks
@@ -87,7 +86,7 @@ class Experiment:
         self.model = model_class(**model_params,
                                  
                                  # BaseModel kwargs
-                                 val_check_steps=10,
+                                 val_check_steps=int(len(self.train_df['ds'].unique()) / args.batch_size),
                                  early_stop_patience_steps=args.patience,
                                  random_seed=fix_seed,
                                  loss=loss,
@@ -101,7 +100,7 @@ class Experiment:
                                  accelerator=args.accelerator,
                                  devices=args.devices,
                                  logger=logger,
-                                 callbacks=callbacks,
+                                #  callbacks=callbacks,
                                  log_every_n_steps=args.log_interval,
                                  enable_checkpointing=True)
 
@@ -115,15 +114,42 @@ class Experiment:
             freq=freq,
         )
 
+    def test_predict(self, df):
+        # split to lookback and forecast windows
+        dates_split = df['ds'].unique()[list(range(self.args.lookback, len(df['ds'].unique()), self.args.horizon))]
+        forecasts = []
+        gts = []
+
+        for i in range(len(dates_split) - 1):
+            lookback_df = df[df['ds'] < dates_split[i]]
+            forecast_df = df[(df['ds'] >= dates_split[i]) & (df['ds'] < dates_split[i + 1])]
+
+            forecast = self.nf.predict(df=lookback_df)
+            forecasts.append(forecast[self.args.model_name].values)
+            gts.append(forecast_df['y'].values)
+
+        forecasts, gts = np.array(forecasts), np.array(gts)
+
+        return forecasts, gts
+
     def train(self):
         val_size = int(len(self.train_df['ds'].unique()) * self.args.val_split)
         self.nf.fit(df=self.train_df, val_size=val_size)
 
     def test(self):
-        self.test_results = tr = self.nf.predict(df=self.test_df)
+        # # split the test data by ds (timestamp)
+        # date_split = self.test_df['ds'].unique()[-self.args.horizon]
+        # test_df = self.test_df[self.test_df['ds'] < date_split]
+        # y = self.test_df[self.test_df['ds'] >= date_split]['y'].values.reshape(self.args.horizon, -1)
 
-        y_hat = tr[self.args.model_name].values.reshape(self.args.horizon, -1)
-        y = self.test_df['y'].values.reshape(-1, y_hat.shape[1])[-self.args.horizon:]
+        # self.test_results = tr = self.nf.predict(df=test_df)
+        # y_hat = tr[self.args.model_name].values.reshape(self.args.horizon, -1)
+
+        # # inverse scaling
+        # y_hat = self.scaler.inverse_transform(y_hat)
+        # y = self.scaler.inverse_transform(y)
+
+        y_hat, y = self.test_predict(self.test_df)
 
         # metrics
         mae = np.mean(np.abs(y - y_hat))
@@ -131,13 +157,13 @@ class Experiment:
         mape = np.mean(np.abs(y - y_hat) / y)
         smape = np.mean(2 * np.abs(y - y_hat) / (np.abs(y) + np.abs(y_hat)))
 
-        print(f"MAE: {mae}, MSE: {mse}, MAPE: {mape}, SMAPE: {smape}")
+        print(f"MAE: {mae}, MSE: {mse}")
 
-        # plotting
-        StatsForecast.plot(df=self.test_df,
-                           forecasts_df=tr,
-                           models=[self.args.model_name],
-                           engine='matplotlib',)
+        # # plotting
+        # StatsForecast.plot(df=self.test_df,
+        #                    forecasts_df=tr,
+        #                    models=[self.args.model_name],
+        #                    engine='matplotlib',)
 
     def run(self):
         print("\n\nStarting the experiment...")

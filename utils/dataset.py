@@ -7,6 +7,7 @@ import pandas as pd
 import os
 
 import datasets
+from sklearn.preprocessing import StandardScaler
 
 
 def count_lines(file_path):
@@ -86,7 +87,7 @@ class ImputationDataset(Dataset):
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.float32)
 
 
-def load_dataset_for_nf(data_path, time_col, test_split=0.1):
+def load_dataset_for_nf(data_path, time_col, test_split=0.1, scale=True):
     file_type = data_path.split(".")[-1]
     data = datasets.load_dataset(file_type, data_files=data_path)['train']
     data = data.to_pandas()
@@ -97,6 +98,15 @@ def load_dataset_for_nf(data_path, time_col, test_split=0.1):
 
     train_data = data.iloc[:train_size]
     test_data = data.iloc[train_size:]
+
+    if scale:
+        # scale the numerical columns
+        scaler = StandardScaler()
+        numerical_cols = data.select_dtypes(include=[np.number]).columns
+        train_data[numerical_cols] = scaler.fit_transform(train_data[numerical_cols])
+        test_data[numerical_cols] = scaler.transform(test_data[numerical_cols])
+    else:
+        scaler = None
 
     # convert to neuralforecast format - long dataset format with 3 columns: unique_id, ds, y
     # unique_id is the index of the time series, ds is the timestamp, y is the value
@@ -131,4 +141,4 @@ def load_dataset_for_nf(data_path, time_col, test_split=0.1):
     train_data = train_data[["unique_id", "ds", "y"]]
     test_data = test_data[["unique_id", "ds", "y"]]
 
-    return train_data, test_data
+    return train_data, test_data, scaler
