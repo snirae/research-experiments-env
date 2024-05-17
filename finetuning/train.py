@@ -14,22 +14,24 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 """
+
 from functools import partial
 from typing import Callable, Optional
-
 import hydra
 import lightning as L
 import torch
+import pickle
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.utils._pytree import tree_map
 from torch.utils.data import Dataset, DistributedSampler
-
+import os
 from uni2ts.common import hydra_util  # noqa: hydra resolvers
 from uni2ts.data.loader import DataLoader
 from lora import lora_finetune
 
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -76,7 +78,7 @@ class DataModule(L.LightningDataModule):
             sampler=sampler,
             batch_size=batch_size,
             num_batches_per_epoch=num_batches_per_epoch,
-            num_workers=6,
+            num_workers=2,
         )
 
     def train_dataloader(self) -> DataLoader:
@@ -128,9 +130,8 @@ def main(cfg: DictConfig):
         assert cfg.trainer.precision == 32
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
-
+    print(f'cfg model: {cfg.model}')
     model: L.LightningModule = instantiate(cfg.model, _convert_="all")
-
     model = lora_finetune(model).get_base_model()
 
     if cfg.compile:
@@ -152,7 +153,17 @@ def main(cfg: DictConfig):
         model,
         datamodule=DataModule(cfg, train_dataset, val_dataset),
     )
+    
 
+
+    
+    os.makedirs("finetuned-models/test-model", exist_ok=True)
+
+    weights_path = "finetuned-models/test-model/weights.pth"
+    torch.save(model.state_dict(), weights_path)
+
+    model_path = "finetuned-models/test-model/model.pkl"
+    torch.save(model, model_path)
 
 if __name__ == "__main__":
     main()

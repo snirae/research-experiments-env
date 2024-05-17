@@ -1,83 +1,83 @@
+compile: false
+defaults:
+- model: moirai_1.0_R_small
+- data: etth1
+- val_data: null
+- _self_
 hydra:
   run:
     dir: outputs/${hydra:job.name}/${hydra:runtime.choices.model}/${hydra:runtime.choices.data}/${run_name}
-defaults:
-  - model: moirai_1.0_R_small #
-  - data: etth1 #
-  - val_data: etth1 #
-  - _self_
-run_name: example_run #
+run_name: test-01
 seed: 0
 tf32: true
-compile: false  # set to mode: default, reduce-overhead, max-autotune
+train_dataloader:
+  _target_: uni2ts.data.loader.DataLoader
+  batch_size: 32
+  batch_size_factor: 2.0
+  collate_fn:
+    _target_: uni2ts.data.loader.PackCollate
+    max_length: ${model.module_kwargs.max_seq_len}
+    pad_func_map: ${cls_getattr:${model._target_},pad_func_map}
+    seq_fields: ${cls_getattr:${model._target_},seq_fields}
+  cycle: true
+  drop_last: false
+  fill_last: false
+  num_batches_per_epoch: 3
+  num_workers: 2
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 2
+  shuffle: true
+  worker_init_fn: null
 trainer:
   _target_: lightning.Trainer
   accelerator: auto
-  strategy: auto
+  accumulate_grad_batches: 1
+  callbacks:
+  - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+  - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${hydra:runtime.output_dir}/checkpoints
+    every_n_epochs: 1
+    mode: min
+    monitor: val/PackedNRMSELoss
+    save_top_k: 1
+    save_weights_only: true
+  - _target_: lightning.pytorch.callbacks.EarlyStopping
+    min_delta: 0.0
+    mode: min
+    monitor: val/PackedNRMSELoss
+    patience: 3
+    strict: false
+    verbose: true
   devices: auto
+  enable_progress_bar: true
+  gradient_clip_algorithm: norm
+  gradient_clip_val: 1.0
+  logger:
+    _target_: lightning.pytorch.loggers.TensorBoardLogger
+    name: logs
+    save_dir: ${hydra:runtime.output_dir}
+  max_epochs: 1
   num_nodes: 1
   precision: 32
-  logger:
-      _target_: lightning.pytorch.loggers.TensorBoardLogger
-      save_dir: ${hydra:runtime.output_dir}
-      name: logs
-  callbacks:
-    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
-      logging_interval: epoch
-    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
-      dirpath: ${hydra:runtime.output_dir}/checkpoints
-      monitor: val/PackedNRMSELoss
-      save_weights_only: true
-      mode: min
-      save_top_k: 1
-      every_n_epochs: 1
-    - _target_: lightning.pytorch.callbacks.EarlyStopping
-      monitor: val/PackedNRMSELoss
-      min_delta: 0.0
-      patience: 3
-      mode: min
-      strict: false
-      verbose: true
-  max_epochs: 100
-  enable_progress_bar: true
-  accumulate_grad_batches: 1
-  gradient_clip_val: 1.0
-  gradient_clip_algorithm: norm
-train_dataloader:
-  _target_: uni2ts.data.loader.DataLoader
-  batch_size: 32  # was 128, lior lowered because of OOM
-  batch_size_factor: 2.0
-  cycle: true
-  num_batches_per_epoch: 100
-  shuffle: true
-  num_workers: 11
-  collate_fn:
-    _target_: uni2ts.data.loader.PackCollate
-    max_length: ${model.module_kwargs.max_seq_len}
-    seq_fields: ${cls_getattr:${model._target_},seq_fields}
-    pad_func_map: ${cls_getattr:${model._target_},pad_func_map}
-  pin_memory: true
-  drop_last: false
-  fill_last: false
-  worker_init_fn: null
-  prefetch_factor: 2
-  persistent_workers: true
+  strategy: auto
 val_dataloader:
   _target_: uni2ts.data.loader.DataLoader
-  batch_size: 32  # was 128, lior lowered because of OOM
+  batch_size: 32
   batch_size_factor: 2.0
-  cycle: false
-  num_batches_per_epoch: null
-  shuffle: false
-  num_workers: 11
   collate_fn:
     _target_: uni2ts.data.loader.PackCollate
     max_length: ${model.module_kwargs.max_seq_len}
-    seq_fields: ${cls_getattr:${model._target_},seq_fields}
     pad_func_map: ${cls_getattr:${model._target_},pad_func_map}
-  pin_memory: false
+    seq_fields: ${cls_getattr:${model._target_},seq_fields}
+  cycle: false
   drop_last: false
   fill_last: true
-  worker_init_fn: null
-  prefetch_factor: 2
+  num_batches_per_epoch: null
+  num_workers: 2
   persistent_workers: true
+  pin_memory: false
+  prefetch_factor: 2
+  shuffle: false
+  worker_init_fn: null
