@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     # data
     parser.add_argument("--val-split", type=float, default=0.1, help="Proportion of the data to use for validation")
+    parser.add_argument("--norm", type=int, default=1, help="Whether to normalize the data (0-False, 1-True)")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training")
     parser.add_argument("--num-workers", type=int, default=4, help="Number of workers for data loading")
     parser.add_argument("--lookback", type=int, default=96, help="Number of time steps to look back")
@@ -71,6 +72,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # cast boolean arguments
+    args.norm = bool(args.norm)
     args.train = bool(args.train)
     args.early_stopping = bool(args.early_stopping)
     args.test = bool(args.test)

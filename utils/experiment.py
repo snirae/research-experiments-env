@@ -54,7 +54,7 @@ class Experiment:
 
         # data
         print(f"Loading data from '{args.data_path}'")
-        self.train_df, self.test_df, self.scaler = load_dataset_for_nf(args.data_path, args.time_col)
+        self.train_df, self.test_df, self.scaler = load_dataset_for_nf(args.data_path, args.time_col, scale=args.norm)
         freq = pd.infer_freq(self.train_df['ds'].unique())  # infer frequency from the data
 
         # callbacks
