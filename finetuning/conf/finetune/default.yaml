@@ -1,13 +1,13 @@
 compile: false
 defaults:
 - model: moirai_1.0_R_small
-- data: etth1
-- val_data: null
+- data: etth2
+- val_data: etth2
 - _self_
 hydra:
   run:
     dir: outputs/${hydra:job.name}/${hydra:runtime.choices.model}/${hydra:runtime.choices.data}/${run_name}
-run_name: test-01
+run_name: test-02
 seed: 0
 tf32: true
 train_dataloader:

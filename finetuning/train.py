@@ -130,10 +130,10 @@ def main(cfg: DictConfig):
         assert cfg.trainer.precision == 32
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
-    print(f'cfg model: {cfg.model}')
+    # print(f'cfg model: {cfg.model}')
     model: L.LightningModule = instantiate(cfg.model, _convert_="all")
     model = lora_finetune(model).get_base_model()
-
+    
     if cfg.compile:
         model.module.compile(mode=cfg.compile)
     trainer: L.Trainer = instantiate(cfg.trainer)
@@ -155,15 +155,9 @@ def main(cfg: DictConfig):
     )
     
 
-
-    
-    os.makedirs("finetuned-models/test-model", exist_ok=True)
-
-    weights_path = "finetuned-models/test-model/weights.pth"
+    weights_path = f"ft-models_weights/{cfg.run_name}.pth"
     torch.save(model.state_dict(), weights_path)
 
-    model_path = "finetuned-models/test-model/model.pkl"
-    torch.save(model, model_path)
 
 if __name__ == "__main__":
     main()

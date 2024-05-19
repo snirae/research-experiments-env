@@ -1,0 +1,4 @@
+[2024-05-19 13:34:59,073][numexpr.utils][INFO] - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+[2024-05-19 13:34:59,073][numexpr.utils][INFO] - NumExpr defaulting to 8 threads.
+[2024-05-19 13:35:02,113][datasets][INFO] - PyTorch version 2.3.0 available.
+[2024-05-19 13:35:02,114][datasets][INFO] - JAX version 0.4.28 available.

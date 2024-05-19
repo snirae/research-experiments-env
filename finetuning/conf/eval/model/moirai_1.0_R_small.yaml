@@ -4,5 +4,5 @@ checkpoint_path:
   repo_id: Salesforce/moirai-1.0-R-small
   filename: model.ckpt
 num_samples: 100
-patch_size: ???
-context_length: ???
+patch_size: 32
+context_length: 1000

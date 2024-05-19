@@ -2,7 +2,7 @@ from peft import LoraConfig, get_peft_model
 import pytorch_lightning as pl
 
 
-def lora_finetune(model):
+def lora_finetune(model, train=True):
         
         target_modules_base = 'module.encoder.layers'
         num_layers = 6
@@ -23,8 +23,10 @@ def lora_finetune(model):
                                  lora_dropout=0.1,
                                  bias="lora_only")
         model = get_peft_model(model, lora_config)
-        print('trainable parameters:')
-        model.print_trainable_parameters()
+
+        if train:
+            print('trainable parameters:')
+            model.print_trainable_parameters()
         
         # wrap the model in LightningModule
         # model = pl.LightningModule(model)
