@@ -12,17 +12,26 @@ from utils.dataset import load_dataset_for_nf
 
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+import wandb
 
 from model.nf_models import load_model
 from utils.training import load_loss, load_optimizer
 
+from utils.nf_fit import wrapper, predict
 from neuralforecast import NeuralForecast
+from neuralforecast.common._base_windows import BaseWindows
 from statsforecast import StatsForecast
+
+import logging
 
 
 class Experiment:
     def __init__(self, args):
+        args.dataset_name = args.data_path.split("/")[-1].split(".")[0]
         self.args = args
+
+        NeuralForecast.fit = wrapper(args=args)
+        BaseWindows.predict = predict
         
         # random seed
         fix_seed = args.seed
@@ -51,73 +60,67 @@ class Experiment:
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
         callbacks = []
-        if args.early_stopping:
-            callbacks.append(EarlyStopping(monitor="valid_loss", patience=args.patience,
-                                           min_delta=args.min_improvement))
-            
-        callbacks.append(ModelCheckpoint(dirpath=args.save_dir, monitor="valid_loss",
-                                         save_top_k=1, mode="min", save_last=True))
+        for model_name in args.models:
+            if args.early_stopping:
+                e = EarlyStopping(
+                        monitor='valid_loss',
+                        patience=args.patience,
+                        min_delta=args.min_improvement,
+                        mode='min'
+                    )
+            mc = ModelCheckpoint(
+                    monitor='valid_loss',
+                    filename=f'{model_name}' + '-{epoch:02d}-{valid_loss:.2f}',
+                    save_top_k=1,
+                    mode='min',
+                )
+            callbacks.append([e, mc])
         
-        # logger
-        print(f"Creating logger '{args.logger}'")
-        if args.logger == "wandb":
-            with open(args.api_key_file, "r") as file:
-                api_key = file.read().strip()
-            
-            logger = WandbLogger(project=args.project, entity=args.entity, api_key=api_key)
-        elif args.logger == "tensorboard":
-            logger = TensorBoardLogger(args.log_dir)
-        else:
-            raise ValueError(f"Logger '{args.logger}' not supported")
-        
-        # logging hyperparameters
-        print("Logging hyperparameters")
-        logger.log_hyperparams(vars(args))
-
         # model parameters
-        print(f"Loading model parameters from '{args.model_config}'")
-        with open(args.model_config, "r") as file:
-            model_params = json.load(file)  # load the model parameters from the config file as a dictionary
+        print(f"Loading models parameters from '{args.configs}'")
+        configs = []
+        for config in args.configs:
+            with open(config, "r") as file:
+                configs.append(json.load(file))
         
-        # model
-        model_class = load_model(args.model_name)
+        # models
+        models_classes = [load_model(model_name) for model_name in args.models]
 
-        print(f"Creating model '{args.model_name}' with parameters: {model_params}")
-        self.model = model_class(**model_params,
+        self.models = []
+        for i, model_class in enumerate(models_classes):
+            model_params = configs[i]
+            print(f"Creating model '{args.models[i]}' with parameters: {model_params}")
+            model = model_class(**model_params,
+                                
+                                # BaseModel kwargs
+                                val_check_steps=args.val_interval,
+                                early_stop_patience_steps=args.patience,
+                                random_seed=fix_seed,
+                                loss=loss,
+                                optimizer=optimizer,
+                                optimizer_kwargs=optimizer_kwargs,
+
+                                batch_size=args.batch_size,
+                                max_steps=args.max_steps,
                                  
-                                 # BaseModel kwargs
-                                 val_check_steps=int(len(self.train_df['ds'].unique()) / args.batch_size),
-                                 early_stop_patience_steps=args.patience,
-                                 random_seed=fix_seed,
-                                 loss=loss,
-                                 optimizer=optimizer,
-                                 optimizer_kwargs=optimizer_kwargs,
+                                # trainer kwargs
+                                accelerator=args.accelerator,
+                                devices=args.devices,
+                                callbacks=callbacks[i],
+                                log_every_n_steps=args.log_interval,
+                                enable_checkpointing=True)
 
-                                 batch_size=args.batch_size,
-                                 max_steps=args.max_steps,
-                                 
-                                 # trainer kwargs
-                                 accelerator=args.accelerator,
-                                 devices=args.devices,
-                                 logger=logger,
-                                #  callbacks=callbacks,
-                                 log_every_n_steps=args.log_interval,
-                                 enable_checkpointing=True)
-
-        # loading checkpoint
-        if args.ckpt_path:
-            print(f"Loading model from checkpoint '{args.ckpt_path}'")
-            self.model.load_from_checkpoint(args.ckpt_path)
+            self.models.append(model)
 
         self.nf = NeuralForecast(
-            models=[self.model],
+            models=self.models,
             freq=freq,
         )
 
     def test_predict(self, df):
         # split to lookback and forecast windows
         dates_split = df['ds'].unique()[list(range(self.args.lookback, len(df['ds'].unique()), self.args.horizon))]
-        forecasts = []
+        forecasts = {model_name: [] for model_name in self.args.models}
         gts = []
 
         for i in range(len(dates_split) - 1):
@@ -125,39 +128,62 @@ class Experiment:
             forecast_df = df[(df['ds'] >= dates_split[i]) & (df['ds'] < dates_split[i + 1])]
 
             forecast = self.nf.predict(df=lookback_df)
-            forecasts.append(forecast[self.args.model_name].values)
+            for model_name in self.args.models:
+                forecasts[model_name].append(forecast[model_name].values)
             gts.append(forecast_df['y'].values)
 
-        forecasts, gts = np.array(forecasts), np.array(gts)
-
-        return forecasts, gts
+        return forecasts, np.array(gts)
 
     def train(self):
         val_size = int(len(self.train_df['ds'].unique()) * self.args.val_split)
         self.nf.fit(df=self.train_df, val_size=val_size)
 
     def test(self):
-        # # split the test data by ds (timestamp)
-        # date_split = self.test_df['ds'].unique()[-self.args.horizon]
-        # test_df = self.test_df[self.test_df['ds'] < date_split]
-        # y = self.test_df[self.test_df['ds'] >= date_split]['y'].values.reshape(self.args.horizon, -1)
+        # disable logging of pytorch_lightning
+        logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
 
-        # self.test_results = tr = self.nf.predict(df=test_df)
-        # y_hat = tr[self.args.model_name].values.reshape(self.args.horizon, -1)
+        # test logger
+        if self.args.logger == "wandb":
+            logger = WandbLogger(save_dir=self.args.log_dir,
+                                 project=self.args.project if self.args.project else self.args.dataset_name,
+                                 entity=self.args.entity,
+                                 name="test-results")
+        elif self.args.logger == "tensorboard":
+            logger = TensorBoardLogger(self.args.log_dir,
+                                       name=self.args.dataset_name,
+                                       version="test-results")
+            
+        logger.log_hyperparams(vars(self.args))
 
-        # # inverse scaling
-        # y_hat = self.scaler.inverse_transform(y_hat)
-        # y = self.scaler.inverse_transform(y)
+        y_hat_dict, y = self.test_predict(self.test_df)
+        print(f"Predicted {len(y)} windows\n\n")
 
-        y_hat, y = self.test_predict(self.test_df)
+        mses, maes = [], []
+        for i, model_name in enumerate(self.args.models):
+            y_hat = np.array(y_hat_dict[model_name])
 
-        # metrics
-        mae = np.mean(np.abs(y - y_hat))
-        mse = np.mean((y - y_hat) ** 2)
-        mape = np.mean(np.abs(y - y_hat) / y)
-        smape = np.mean(2 * np.abs(y - y_hat) / (np.abs(y) + np.abs(y_hat)))
+            # metrics
+            mae = np.mean(np.abs(y - y_hat))
+            mse = np.mean((y - y_hat) ** 2)
 
-        print(f"MAE: {mae}, MSE: {mse}")
+            print(f"{model_name} - MSE: {mse:.4f}, MAE: {mae:.4f}")
+
+            mses.append(mse)
+            maes.append(mae)
+
+        # logging
+        if self.args.logger == "wandb":
+            df = pd.DataFrame({
+                "model": self.args.models,
+                "mse": mses,
+                "mae": maes
+            })
+            table = wandb.Table(dataframe=df)
+            logger.experiment.log({"test_metrics": table})
+        elif self.args.logger == "tensorboard":
+            for i, model_name in enumerate(self.args.models):
+                logger.log_metrics({f"{model_name}_mse": mses[i],
+                                    f"{model_name}_mae": maes[i]})
 
         # # plotting
         # StatsForecast.plot(df=self.test_df,
@@ -167,7 +193,7 @@ class Experiment:
 
     def run(self):
         print("\n\nStarting the experiment...")
-        print(f"Training the model '{self.args.model_name}'")
+        print(f"Training the models {self.args.models}")
 
         if self.args.train:
             print(f"Saving checkpoints to '{self.args.save_dir}'")
@@ -183,6 +209,9 @@ class Experiment:
             
             self.test()
 
-            print("Testing finished.")
+            print("\nTesting finished.")
 
         print("\nExperiment finished.")
+
+        if self.args.logger == "wandb":
+            wandb.finish()

@@ -1,6 +1,7 @@
 # A script to run the pretraining, given a model and other parameters
 
 import argparse
+import yaml
 import warnings
 from utils.experiment import Experiment
 
@@ -9,14 +10,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pretraining script")
 
     ##### Required arguments #####
-    parser.add_argument("--model-name", type=str, help="Name of the model to use, as defined in the filename and implementation")
-    parser.add_argument("--model-config", type=str, default='./model/config.json', help="Path to the model configuration file (JSON)")
-    parser.add_argument("--ckpt-path", type=str, default="", help="Path to a checkpoint to load the model from")
-    parser.add_argument("--data-path", type=str, default="./data.csv", help="Path to the dataset file")
+    parser.add_argument("--models", nargs='+', default=["PatchTST"], help="Name of the models to train")
+    parser.add_argument("--configs", nargs='+', default=["./model/patchtst.json"], help="Path to the models config files (json)")
+    parser.add_argument("--data-path", type=str, default="./data/ETTh1.csv", help="Path to the dataset file")
     parser.add_argument("--time-col", type=str, default="date", help="Name of the time column in the dataset")
-    # parser.add_argument("--task", type=str, default="forecasting", help="Task to train the model on")
 
     ##### Optional arguments #####
+    # config file
+    parser.add_argument("--config", type=str, help="Path to a yaml config file")  #  default='./config.yaml',
+
     # seed
     parser.add_argument("--seed", type=int, default=2024, help="Random seed")
 
@@ -31,6 +33,7 @@ if __name__ == "__main__":
 
     # training
     parser.add_argument("--train", type=int, default=1, help="Whether to train the model (0-False, 1-True)")
+    parser.add_argument("--val-interval", type=int, default=100, help="Number of training steps between validation steps")
     # parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--max-steps", type=int, default=5000, help="Number of steps to train for")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
@@ -46,8 +49,8 @@ if __name__ == "__main__":
     # logging
     parser.add_argument("--logger", type=str, default="tensorboard", help="Logger to use (wandb, tensorboard)")
     parser.add_argument("--api-key-file", type=str, default="./api_key.txt", help="Path to the file containing the API key")
-    parser.add_argument("--project", type=str, default="pretraining", help="Project name for logging")
-    parser.add_argument("--entity", type=str, default="pretraining", help="Entity name for logging")
+    parser.add_argument("--project", type=str, help="Project name for logging")
+    parser.add_argument("--entity", type=str, default="tl4ts", help="Entity name for logging")
     parser.add_argument("--log-interval", type=int, default=10, help="Interval for logging by steps")
     parser.add_argument("--log-dir", type=str, default="./logs", help="Directory to save logs")
     parser.add_argument("--save-dir", type=str, default="./checkpoints", help="Directory to save models")
@@ -72,6 +75,13 @@ if __name__ == "__main__":
     args.early_stopping = bool(args.early_stopping)
     args.test = bool(args.test)
     args.save_plots = bool(args.save_plots)
+
+    # load config file
+    if args.config:
+        with open(args.config, "r") as file:
+            config = yaml.safe_load(file)
+            for key, value in config.items():
+                setattr(args, key, value)
 
     # running the experiment
     exp = Experiment(args)
