@@ -5,3 +5,4 @@ pytorch-lightning
 neuralforecast
 datasets
 sklearn
+wandb

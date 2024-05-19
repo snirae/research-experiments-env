@@ -1,0 +1,15 @@
+models:
+  - "PatchTST"
+  - "DLinear"
+
+configs:
+  - "./model/patchtst.json"
+  - "./model/patchtst.json"
+
+data_path: "./data/ETTh1.csv"
+
+time_col: "date"
+
+max_steps: 5000
+
+logger: "wandb"
