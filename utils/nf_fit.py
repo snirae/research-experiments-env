@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 import fsspec
 import pandas as pd
+import numpy as np
 from utilsforecast.compat import DataFrame, pl_DataFrame
 from utilsforecast.validation import validate_freq
 
@@ -188,7 +189,7 @@ def wrapper(args):
     return fit
 
 
-def predict(
+def predict_base_windows(
         self,
         dataset,
         test_size=None,
@@ -230,5 +231,54 @@ def predict(
         trainer = pl.Trainer(**pred_trainer_kwargs)
         fcsts = trainer.predict(self, datamodule=datamodule)
         fcsts = torch.vstack(fcsts).numpy().flatten()
+        fcsts = fcsts.reshape(-1, len(self.loss.output_names))
+        return fcsts
+
+
+def predict_base_multivariate(
+        self,
+        dataset,
+        test_size=None,
+        step_size=1,
+        random_seed=None,
+        **data_module_kwargs,
+    ):
+        """Predict.
+
+        Neural network prediction with PL's `Trainer` execution of `predict_step`.
+
+        **Parameters:**<br>
+        `dataset`: NeuralForecast's `TimeSeriesDataset`, see [documentation](https://nixtla.github.io/neuralforecast/tsdataset.html).<br>
+        `test_size`: int=None, test size for temporal cross-validation.<br>
+        `step_size`: int=1, Step size between each window.<br>
+        `**data_module_kwargs`: PL's TimeSeriesDataModule args, see [documentation](https://pytorch-lightning.readthedocs.io/en/1.6.1/extensions/datamodules.html#using-a-datamodule).
+        """
+        self._check_exog(dataset)
+        self._restart_seed(random_seed)
+
+        self.predict_step_size = step_size
+        self.decompose_forecast = False
+        datamodule = TimeSeriesDataModule(
+            dataset=dataset,
+            valid_batch_size=self.n_series,
+            batch_size=self.n_series,
+            **data_module_kwargs,
+        )
+
+        # Protect when case of multiple gpu. PL does not support return preds with multiple gpu.
+        pred_trainer_kwargs = self.trainer_kwargs.copy()
+        if (pred_trainer_kwargs.get("accelerator", None) == "gpu") and (
+            torch.cuda.device_count() > 1
+        ):
+            pred_trainer_kwargs["devices"] = [0]
+
+        pred_trainer_kwargs.pop('logger', None)
+
+        trainer = pl.Trainer(**pred_trainer_kwargs)
+        fcsts = trainer.predict(self, datamodule=datamodule)
+        fcsts = torch.vstack(fcsts).numpy()
+
+        fcsts = np.transpose(fcsts, (2, 0, 1))
+        fcsts = fcsts.flatten()
         fcsts = fcsts.reshape(-1, len(self.loss.output_names))
         return fcsts

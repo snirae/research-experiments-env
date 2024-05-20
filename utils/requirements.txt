@@ -3,6 +3,7 @@ pandas
 torch
 pytorch-lightning
 neuralforecast
+statsforecast
 datasets
 sklearn
 wandb

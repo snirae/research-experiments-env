@@ -17,9 +17,11 @@ import wandb
 from model.nf_models import load_model
 from utils.training import load_loss, load_optimizer
 
-from utils.nf_fit import wrapper, predict
+from utils.nf_fit import wrapper, predict_base_windows, predict_base_multivariate
 from neuralforecast import NeuralForecast
 from neuralforecast.common._base_windows import BaseWindows
+from neuralforecast.common._base_multivariate import BaseMultivariate
+
 from statsforecast import StatsForecast
 
 import logging
@@ -31,7 +33,8 @@ class Experiment:
         self.args = args
 
         NeuralForecast.fit = wrapper(args=args)
-        BaseWindows.predict = predict
+        BaseWindows.predict = predict_base_windows
+        BaseMultivariate.predict = predict_base_multivariate
         
         # random seed
         fix_seed = args.seed
