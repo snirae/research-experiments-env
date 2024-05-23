@@ -1,15 +1,32 @@
 models:
   - "PatchTST"
   - "DLinear"
+  - "TimesNet"
+  - "TFT"
+  - "NBEATS"
+  - "NHITS"
+
+  - "TSMixer"
+  - "iTransformer"
 
 configs:
   - "./model/patchtst.json"
   - "./model/patchtst.json"
+  - "./model/patchtst.json"
+  - "./model/patchtst.json"
+  - "./model/patchtst.json"
+  - "./model/patchtst.json"
 
-data_path: "./data/ETTh1.csv"
+  - "./model/tsmixer.json"
+  - "./model/tsmixer.json"
+
+data_path: "./data/electricity.csv"
 
 time_col: "date"
 
 max_steps: 5000
 
 logger: "wandb"
+
+horizon: 96
+lookback: 96
