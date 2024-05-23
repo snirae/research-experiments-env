@@ -161,12 +161,12 @@ def wrapper(args):
                     wandb.login(key=api_key)
                     
                     logger = WandbLogger(save_dir=args.log_dir,
-                                        project=args.project if args.project else args.dataset_name,
+                                        project=args.project if args.project else f'{args.dataset_name}_{args.horizon}',
                                         entity=args.entity,
                                         name=args.models[i])
                 elif args.logger == "tensorboard":
                     logger = TensorBoardLogger(args.log_dir,
-                                            name=args.dataset_name,
+                                            name=f'{args.dataset_name}_{args.horizon}',
                                             version=args.models[i])
                 else:
                     raise ValueError(f"Logger '{args.logger}' not supported")
