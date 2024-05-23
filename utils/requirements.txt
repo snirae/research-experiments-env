@@ -5,5 +5,5 @@ pytorch-lightning
 neuralforecast
 statsforecast
 datasets
-sklearn
+scikit-learn
 wandb
