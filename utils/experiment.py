@@ -148,12 +148,12 @@ class Experiment:
         # test logger
         if self.args.logger == "wandb":
             logger = WandbLogger(save_dir=self.args.log_dir,
-                                 project=self.args.project if self.args.project else self.args.dataset_name,
+                                 project=self.args.project if self.args.project else f'{self.args.dataset_name}_{self.args.horizon}',
                                  entity=self.args.entity,
                                  name="test-results")
         elif self.args.logger == "tensorboard":
             logger = TensorBoardLogger(self.args.log_dir,
-                                       name=self.args.dataset_name,
+                                       name=f'{self.args.dataset_name}_{self.args.horizon}',
                                        version="test-results")
             
         logger.log_hyperparams(vars(self.args))
