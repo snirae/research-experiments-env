@@ -40,7 +40,6 @@ class LossSum(pytorch.BasePointLoss):
         self.losses = losses
 
     def forward(self, y_hat, y, mask=None):
-        return torch.sum(torch.tensor([loss(y_hat, y, mask) for loss in self.losses],
-                                      requires_grad=True)
-                         )/ len(self.losses)
+        return torch.mean(torch.tensor([loss(y_hat, y, mask) for loss in self.losses],
+                                      requires_grad=True))
     

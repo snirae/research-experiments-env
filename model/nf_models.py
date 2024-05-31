@@ -2,15 +2,16 @@
 # DLinear, NLinear, TiDE, DeepNPTS, TFT, VanillaTransformer, Informer, Autoformer,
 # FEDformer, PatchTST, TimesNet, iTransformer, StemGNN, HINT, TSMixer, TSMixerx, MLPMultivariate
 
+from neuralforecast import models
+
+
+models = {name.lower(): name for name in models.__all__}
 
 def load_model(model_name):
     # import the file containing the model class
-    try:
-        model_module = __import__(f"neuralforecast.models.{model_name.lower()}", fromlist=[""])
-    except ImportError:
-        raise ImportError(f"Model '{model_name}' not found")
-    
-    # get the model class from the module
-    model_class = getattr(model_module, model_name)
+    model_class = models.get(model_name.lower())
 
-    return model_class
+    if model_class:
+        return getattr(models, model_class)
+
+    raise ValueError(f"Model '{model_name}' not supported")
