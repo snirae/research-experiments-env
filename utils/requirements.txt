@@ -7,3 +7,5 @@ statsforecast
 datasets
 scikit-learn
 wandb
+uni2ts
+peft
