@@ -21,6 +21,7 @@ def add_lora(model, task_type = "SEQ_2_SEQ_LM", r=8, lora_alpha=16, lora_dropout
 
     return model
 
+# neuralforecast models don't use the original pytorch module __repr__
 def model_printer(model):
     for name, module in model.named_modules():
         print(module)
