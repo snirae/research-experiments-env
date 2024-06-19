@@ -3,7 +3,9 @@
 import argparse
 import yaml
 import warnings
-from utils.experiment import Experiment
+
+from model.moirai.moirai_exp import MoiraiExp
+from model.benchmarks.nf_exp import NFExp
 
 
 if __name__ == "__main__":
@@ -23,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=2024, help="Random seed")
 
     # data
+    parser.add_argument("--is-local", type=int, default=1, help="Whether the data is local (0-False, 1-True)")
     parser.add_argument("--val-split", type=float, default=0.1, help="Proportion of the data to use for validation")
     parser.add_argument("--norm", type=int, default=1, help="Whether to normalize the data (0-False, 1-True)")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training")
@@ -40,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="Weight decay")
     parser.add_argument("--optimizer", type=str, default="adam", help="Optimizer to use")
-    parser.add_argument("--losses", nargs='+', default=["mse"], help="Loss functions to use")
+    parser.add_argument("--loss", type=str, default="mse", help="Loss function to use")
 
     # callbacks
     parser.add_argument("--early-stopping", type=int, default=1, help="Whether to use early stopping (0-False, 1-True)")
@@ -58,7 +61,6 @@ if __name__ == "__main__":
 
     # testing
     parser.add_argument("--test", type=int, default=1, help="Whether to test the model (0-False, 1-True)")
-    # parser.add_argument("--test-data", type=str, default='./testing/data', help="Path to the test data directory")
     parser.add_argument("--test-split", type=float, default=0.1, help="Proportion of the data to use for testing")
     parser.add_argument("--save-plots", type=int, default=1, help="Whether to save forecasting plots (0-False, 1-True)")
 
@@ -72,6 +74,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # cast boolean arguments
+    args.is_local = bool(args.is_local)
     args.norm = bool(args.norm)
     args.train = bool(args.train)
     args.early_stopping = bool(args.early_stopping)
@@ -86,6 +89,12 @@ if __name__ == "__main__":
                 setattr(args, key, value)
 
     # running the experiment
-    exp = Experiment(args)
+    lowered_models = [model.lower() for model in args.models]
+    if 'moirai' in lowered_models:
+        idx = lowered_models.index('moirai')
+        exp = MoiraiExp(args, idx)
+    else:
+        exp = NFExp(args)
+
     exp.run()
     
