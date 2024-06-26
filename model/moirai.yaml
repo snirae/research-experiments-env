@@ -1,0 +1,13 @@
+size: 'small'
+patch_size: 'auto'
+num_samples: 100
+target_dim: 2
+
+train_dataloader:
+  shuffle: true
+  num_batches_per_epoch: 100
+
+val_dataloader:
+  shuffle: false
+
+lora: true

@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from utils.experiment import Experiment
-from utils.dataset import load_dataset_for_nf
+from utils.nf_dataset import load_dataset_for_nf
 from model.benchmarks.training import load_loss
 from model.benchmarks.neuralmodels import NFHandler
 

@@ -4,7 +4,7 @@ import pandas as pd
 from datasets import load_dataset
 from sklearn.preprocessing import StandardScaler
 
-from load_dataset import dataset_loader
+from utils.moirai_dataset import get_pandas_dataframe
 
 
 def prepare_dataset_for_nf(df, time_col, test_split=0.1, scale=True):
@@ -59,29 +59,16 @@ def prepare_dataset_for_nf(df, time_col, test_split=0.1, scale=True):
 
     return train_data, test_data, scaler
 
-def load_dataset_for_nf(data_path, time_col, test_split=0.1, scale=True,
+def load_dataset_for_nf(data_path, time_col=None, test_split=0.1, scale=True,
                         is_local=True):
     if is_local:
         file_type = data_path.split(".")[-1]
         data = load_dataset(file_type, data_files=data_path)['train']
         data = data.to_pandas()
-
-        train_data, test_data, scaler = prepare_dataset_for_nf(data, time_col, test_split, scale)
     else:
-        data = dataset_loader().get_dataframe(data_path)
-
-        # scale the numerical columns
-        if scale:
-            scaler = StandardScaler()
-            numerical_cols = data.select_dtypes(include=[np.number]).columns
-            data[numerical_cols] = scaler.fit_transform(data[numerical_cols])
-        else:
-            scaler = None
-
-        # split the data by 'ds' column
-        test_size = int(len(data) * test_split)
-        split_date = data['ds'].unique()[-test_size]
-        train_data = data[data['ds'] < split_date]
-        test_data = data[data['ds'] >= split_date]
+        data = get_pandas_dataframe(data_path)
+        time_col = 'date'
+    
+    train_data, test_data, scaler = prepare_dataset_for_nf(data, time_col, test_split, scale)
 
     return train_data, test_data, scaler

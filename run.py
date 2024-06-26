@@ -12,8 +12,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pretraining script")
 
     ##### Required arguments #####
-    parser.add_argument("--models", nargs='+', default=["PatchTST"], help="Name of the models to train")
-    parser.add_argument("--configs", nargs='+', default=["./model/patchtst.json"], help="Path to the models config files (json)")
+    parser.add_argument("--models", nargs='+', default=["MOIRAI"], help="Name of the models to train")
+    parser.add_argument("--configs", nargs='+', default=["./model/moirai.yaml"], help="Path to the models config files (json)")
     parser.add_argument("--data-path", type=str, default="./data/ETTh1.csv", help="Path to the dataset file")
     parser.add_argument("--time-col", type=str, default="date", help="Name of the time column in the dataset")
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # training
     parser.add_argument("--train", type=int, default=1, help="Whether to train the model (0-False, 1-True)")
     parser.add_argument("--val-interval", type=int, default=100, help="Number of training steps between validation steps")
-    # parser.add_argument("--max-epochs", type=int, default=10, help="Number of epochs to train for")
+    parser.add_argument("--max-epochs", type=int, default=1000, help="Number of epochs to train for")
     parser.add_argument("--max-steps", type=int, default=5000, help="Number of steps to train for")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="Weight decay")

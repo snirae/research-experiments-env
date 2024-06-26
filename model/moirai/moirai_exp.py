@@ -1,11 +1,10 @@
-import json
+import yaml
 import numpy as np
-import pandas as pd
 import wandb
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
+import lightning as pl
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 
 from utils.experiment import Experiment
 from model.moirai.moirai import MoiraiHandler
@@ -19,13 +18,13 @@ class MoiraiExp(Experiment):
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
         es = EarlyStopping(
-            monitor='val/PackedNLLLoss',
+            monitor='val_loss',
             patience=args.patience,
             min_delta=args.min_improvement,
             mode='min'
         )
         mc = ModelCheckpoint(
-            monitor='val/PackedNLLLoss',
+            monitor='val_loss',
             filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
             save_top_k=1,
             mode='min',
@@ -36,7 +35,7 @@ class MoiraiExp(Experiment):
         # model parameters
         print(f"Loading model parameters from '{args.configs[i]}'")
         with open(args.configs[i], "r") as file:
-            params = json.load(file)
+            params = yaml.safe_load(file)
 
         self.params = params
 
@@ -45,8 +44,6 @@ class MoiraiExp(Experiment):
         self.moirai = MoiraiHandler(
             args,
             size=params['size'],
-            horizon=params['horizon'],
-            lookback=params['lookback'],
             patch_size=params['patch_size'],
             num_samples=params['num_samples'],
             target_dim=params['target_dim'],
@@ -94,8 +91,9 @@ class MoiraiExp(Experiment):
     def train(self):
         trainer = pl.Trainer(
             logger=self.logger,
-            callbacks=self.callbacks,
+            callbacks=self.callbacks if hasattr(self, 'callbacks') else None,
             max_steps=self.args.max_steps,
+            max_epochs=self.args.max_epochs,
             accelerator=self.args.accelerator,
             log_every_n_steps=self.args.log_interval,
         )

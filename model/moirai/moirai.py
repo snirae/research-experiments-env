@@ -1,18 +1,19 @@
 from uni2ts.model.moirai import MoiraiFinetune, MoiraiForecast, MoiraiModule
-from uni2ts.distribution import MixtureOutput, StudentTOutput, NormalFixedScaleOutput, NegativeBinomialOutput, LogNormalOutput
 from uni2ts.loss.packed import PackedNLLLoss, PackedMSELoss
-from uni2ts.data.loader import DataLoader, Collate
+from uni2ts.data.loader import DataLoader, Collate, PackCollate
 
 import numpy as np
+import torch
 from typing import Callable, Optional
 from omegaconf import DictConfig
 from torch.utils.data import Dataset, DistributedSampler
-import pytorch_lightning as pl
+import lightning as pl
 import pandas as pd
 from gluonts.dataset.pandas import PandasDataset
 from gluonts.evaluation.backtest import make_evaluation_predictions
 
-from model.finetuning import add_lora
+
+from utils.finetuning import add_lora
 
 
 class DataModule(pl.LightningDataModule):
@@ -98,19 +99,92 @@ class DataModule(pl.LightningDataModule):
             self.trainer.world_size * self.trainer.accumulate_grad_batches
         )
 
-    @property
-    def train_num_batches_per_epoch(self) -> int:
-        return (
-            self.cfg['train_dataloader']['num_batches_per_epoch']
-            * self.trainer.accumulate_grad_batches
+
+def validation_step(
+        self, batch: dict[str, torch.Tensor], batch_idx: int, dataloader_idx: int = 0
+    ) -> torch.Tensor:
+        distr = self(
+            **{field: batch[field] for field in list(self.seq_fields) + ["sample_id"]}
         )
+        val_loss = self.hparams.loss_func(
+            pred=distr,
+            **{
+                field: batch[field]
+                for field in [
+                    "target",
+                    "prediction_mask",
+                    "observed_mask",
+                    "sample_id",
+                    "variate_id",
+                ]
+            },
+        )
+        batch_size = (
+            batch["sample_id"].max(dim=1).values.sum() if "sample_id" in batch else None
+        )
+
+        self.log(
+            "val_loss",
+            val_loss,
+            on_step=self.hparams.log_on_step,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+            batch_size=batch_size,
+            rank_zero_only=True,
+        )
+
+        # if self.hparams.val_metric is not None:
+        #     val_metrics = (
+        #         self.hparams.val_metric
+        #         if isinstance(self.hparams.val_metric, list)
+        #         else [self.hparams.val_metric]
+        #     )
+        #     for metric_func in val_metrics:
+        #         if isinstance(metric_func, PackedPointLoss):
+        #             pred = distr.sample(torch.Size((self.hparams.num_samples,)))
+        #             pred = torch.median(pred, dim=0).values
+        #         elif isinstance(metric_func, PackedDistributionLoss):
+        #             pred = distr
+        #         else:
+        #             raise ValueError(f"Unsupported loss function: {metric_func}")
+
+        #         metric = metric_func(
+        #             pred=pred,
+        #             **{
+        #                 field: batch[field]
+        #                 for field in [
+        #                     "target",
+        #                     "prediction_mask",
+        #                     "observed_mask",
+        #                     "sample_id",
+        #                     "variate_id",
+        #                 ]
+        #             },
+        #         )
+
+        #         self.log(
+        #             f"val/{metric_func.__class__.__name__}",
+        #             metric,
+        #             on_step=self.hparams.log_on_step,
+        #             on_epoch=True,
+        #             prog_bar=True,
+        #             logger=True,
+        #             sync_dist=True,
+        #             batch_size=batch_size,
+        #             rank_zero_only=True,
+        #         )
+
+        return val_loss
 
 
 class MoiraiHandler:
     def __init__(self, args, size="base",
-                 patch_size='auto', num_samples=1, target_dim=2,
+                 patch_size='auto', num_samples=100, target_dim=2,
                  lora=True):
         self.model = MoiraiModule.from_pretrained(f"Salesforce/moirai-1.0-R-{size}")
+        self.args = args
         self.size = size
         self.horizon = args.horizon
         self.lookback = args.lookback
@@ -121,21 +195,13 @@ class MoiraiHandler:
         if lora:
             self.model = add_lora(model=self.model)
 
+        MoiraiFinetune.validation_step = validation_step
         self.finetune = MoiraiFinetune(
-            module_kwargs={
-                "distr_output": MixtureOutput(
-                        [StudentTOutput(), NormalFixedScaleOutput(),
-                         NegativeBinomialOutput(), LogNormalOutput()]
-                ),
-                
-                "d_model": 384,
-                "num_layers": 6,
-                "patch_sizes": [8, 16, 32, 64, 128],
-                "max_seq_len": 512,
-                "attn_dropout_p": 0.0,
-                "dropout_p": 0.0,
-                "scaling": True,
-            },
+            min_patches=2,
+            min_mask_ratio=0.15,
+            max_mask_ratio=0.5,
+            max_dim=128,
+            module=self.model,
             loss_func=PackedNLLLoss(),
             val_metric=PackedMSELoss(),
             lr=args.lr,
@@ -147,7 +213,19 @@ class MoiraiHandler:
         )
         self.finetune.module = self.model
 
+        self.train_transform_map = self.finetune.train_transform_map
+
     def train(self, trainer, train_set, val_set, cfg):
+        max_len = 512
+        seq_fields = self.finetune.seq_fields
+        pad_func_map = self.finetune.pad_func_map
+
+        cfg['train_dataloader']['collate_fn'] = PackCollate(max_len, seq_fields, pad_func_map)
+        cfg['train_dataloader']['batch_size'] = self.args.batch_size
+
+        cfg['val_dataloader']['collate_fn'] = PackCollate(max_len, seq_fields, pad_func_map)
+        cfg['val_dataloader']['batch_size'] = self.args.batch_size
+
         data_module = DataModule(cfg, train_set, val_set)
         trainer.fit(self.finetune,
                     datamodule=data_module)
@@ -175,62 +253,20 @@ class MoiraiHandler:
         for i in range(self.lookback, len(test_df), PDT):
             context_label = test_df.iloc[i - self.lookback:i + PDT]
             ds = PandasDataset(context_label,
-                            target=list(test_df.columns),
-                            freq=pd.infer_freq(test_df.index))
+                               target=list(test_df.columns),
+                               freq=pd.infer_freq(test_df.index))
             
             forecast_it, ts_it = make_evaluation_predictions(
                 dataset=ds,  # test dataset
                 predictor=predictor,  # trained model
-                num_samples=1  # number of sample paths to draw
+                num_samples=self.num_samples  # number of sample paths to draw
             ) 
             forecasts.extend(list(forecast_it))
             tss.extend(list(ts_it))
 
-        forecasts = np.stack([f.samples[0] for f in forecasts])
-        tss = np.stack([ts.values[-PDT:] for ts in tss])
-
-        forecasts = forecasts.reshape(-1, forecasts.shape[-1])
-        tss = tss.reshape(-1, tss.shape[-1])
+        # forecasts shape: (num_samples, num_series, prediction_length)
+        # tss shape: (num_series, prediction_length)
+        forecasts = np.stack([f.samples for f in forecasts]).squeeze().mean(axis=1)
+        tss = np.stack([ts.values[-PDT:] for ts in tss]).squeeze()
 
         return tss, forecasts
-
-
-# yaml config file of moiraifinetune
-# target: uni2ts.model.moirai.MoiraiFinetune
-# module:
-#   target: uni2ts.model.moirai.MoiraiModule.from_pretrained
-#   pretrained_model_name_or_path: Salesforce/moirai-1.0-R-small
-# module_kwargs:
-#   target: builtins.dict
-#   distr_output:
-#     target: uni2ts.distribution.MixtureOutput
-#     components:
-      
-# target: uni2ts.distribution.StudentTOutput
-# target: uni2ts.distribution.NormalFixedScaleOutput
-# target: uni2ts.distribution.NegativeBinomialOutput
-# target: uni2ts.distribution.LogNormalOutput
-# d_model: 384
-# num_layers: 6
-# patch_sizes: ${as_tuple:[8, 16, 32, 64, 128]}
-# max_seq_len: 512
-# attn_dropout_p: 0.0
-# dropout_p: 0.0
-# scaling: true
-# min_patches: 2
-# min_mask_ratio: 0.15
-# max_mask_ratio: 0.5
-# max_dim: 128
-# loss_func:
-#   target: uni2ts.loss.packed.PackedNLLLoss
-# val_metric:
-  
-# target: uni2ts.loss.packed.PackedMSELoss
-# target: uni2ts.loss.packed.PackedNRMSELoss
-# normalize: absolute_target_squared
-# lr: 1e-3
-# weight_decay: 1e-1
-# beta1: 0.9
-# beta2: 0.98
-# num_training_steps: ${mul:${trainer.max_epochs},${train_dataloader.num_batches_per_epoch}}
-# num_warmup_steps: 0
