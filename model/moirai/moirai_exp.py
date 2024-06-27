@@ -1,6 +1,7 @@
 import yaml
 import numpy as np
 import wandb
+import torch
 
 import lightning as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -15,22 +16,22 @@ class MoiraiExp(Experiment):
     def __init__(self, args, i):
         super(MoiraiExp, self).__init__(args)
 
-        # callbacks
-        print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
-        es = EarlyStopping(
-            monitor='val_loss',
-            patience=args.patience,
-            min_delta=args.min_improvement,
-            mode='min'
-        )
-        mc = ModelCheckpoint(
-            monitor='val_loss',
-            filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
-            save_top_k=1,
-            mode='min',
-        )
+        # # callbacks
+        # print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
+        # es = EarlyStopping(
+        #     monitor='val_loss',
+        #     patience=args.patience,
+        #     min_delta=args.min_improvement,
+        #     mode='min'
+        # )
+        # mc = ModelCheckpoint(
+        #     monitor='val_loss',
+        #     filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
+        #     save_top_k=1,
+        #     mode='min',
+        # )
 
-        self.callbacks = [es, mc]
+        # self.callbacks = [es, mc]
 
         # model parameters
         print(f"Loading model parameters from '{args.configs[i]}'")
@@ -100,6 +101,10 @@ class MoiraiExp(Experiment):
         self.trainer = trainer
 
         self.moirai.train(trainer, self.train_set, self.val_set, self.params)
+
+        # save model
+        print(f"Saving model to '{self.args.save_dir}'")
+        torch.save(self.moirai.model.state_dict(), f"{self.args.save_dir}/moirai_{self.args.dataset_name}_{self.args.horizon}.pt")
 
     def test(self):
         labels, forecasts = self.moirai.predict(self.test_set)

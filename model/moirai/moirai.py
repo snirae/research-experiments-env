@@ -103,80 +103,39 @@ class DataModule(pl.LightningDataModule):
 def validation_step(
         self, batch: dict[str, torch.Tensor], batch_idx: int, dataloader_idx: int = 0
     ) -> torch.Tensor:
-        distr = self(
-            **{field: batch[field] for field in list(self.seq_fields) + ["sample_id"]}
-        )
-        val_loss = self.hparams.loss_func(
-            pred=distr,
-            **{
-                field: batch[field]
-                for field in [
-                    "target",
-                    "prediction_mask",
-                    "observed_mask",
-                    "sample_id",
-                    "variate_id",
-                ]
-            },
-        )
-        batch_size = (
-            batch["sample_id"].max(dim=1).values.sum() if "sample_id" in batch else None
-        )
+    distr = self(
+        **{field: batch[field] for field in list(self.seq_fields) + ["sample_id"]}
+    )
+    val_loss = self.hparams.loss_func(
+        pred=distr,
+        **{
+            field: batch[field]
+            for field in [
+                "target",
+                "prediction_mask",
+                "observed_mask",
+                "sample_id",
+                "variate_id",
+            ]
+        },
+    )
+    batch_size = (
+        batch["sample_id"].max(dim=1).values.sum() if "sample_id" in batch else None
+    )
 
-        self.log(
-            "val_loss",
-            val_loss,
-            on_step=self.hparams.log_on_step,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
-            batch_size=batch_size,
-            rank_zero_only=True,
-        )
+    self.log(
+        "val_loss",
+        val_loss,
+        on_step=self.hparams.log_on_step,
+        on_epoch=True,
+        prog_bar=True,
+        logger=True,
+        sync_dist=True,
+        batch_size=batch_size,
+        rank_zero_only=True,
+    )
 
-        # if self.hparams.val_metric is not None:
-        #     val_metrics = (
-        #         self.hparams.val_metric
-        #         if isinstance(self.hparams.val_metric, list)
-        #         else [self.hparams.val_metric]
-        #     )
-        #     for metric_func in val_metrics:
-        #         if isinstance(metric_func, PackedPointLoss):
-        #             pred = distr.sample(torch.Size((self.hparams.num_samples,)))
-        #             pred = torch.median(pred, dim=0).values
-        #         elif isinstance(metric_func, PackedDistributionLoss):
-        #             pred = distr
-        #         else:
-        #             raise ValueError(f"Unsupported loss function: {metric_func}")
-
-        #         metric = metric_func(
-        #             pred=pred,
-        #             **{
-        #                 field: batch[field]
-        #                 for field in [
-        #                     "target",
-        #                     "prediction_mask",
-        #                     "observed_mask",
-        #                     "sample_id",
-        #                     "variate_id",
-        #                 ]
-        #             },
-        #         )
-
-        #         self.log(
-        #             f"val/{metric_func.__class__.__name__}",
-        #             metric,
-        #             on_step=self.hparams.log_on_step,
-        #             on_epoch=True,
-        #             prog_bar=True,
-        #             logger=True,
-        #             sync_dist=True,
-        #             batch_size=batch_size,
-        #             rank_zero_only=True,
-        #         )
-
-        return val_loss
+    return val_loss
 
 
 class MoiraiHandler:
