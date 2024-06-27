@@ -202,7 +202,7 @@ def load_dataset_for_moirai(data_path, time_col, transform_map,
    # uni2ts TimeSeriesDataset format for train and val
    SimpleDatasetBuilder.__post_init__ = lambda self: setattr(self, 'storage_path', Path(path))
 
-   train_dataset = SimpleDatasetBuilder(dataset=f'{name}_train').load_dataset(transform_map)
-   val_dataset = SimpleDatasetBuilder(dataset=f'{name}_val').load_dataset(transform_map)
+   train_dataset = SimpleDatasetBuilder(dataset=f'{name}_train', weight=1000).load_dataset(transform_map)
+   val_dataset = SimpleDatasetBuilder(dataset=f'{name}_val', weight=1000).load_dataset(transform_map)
    
    return train_dataset, val_dataset, test

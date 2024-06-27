@@ -98,6 +98,13 @@ class DataModule(pl.LightningDataModule):
         return self.cfg['val_dataloader']['batch_size'] // (
             self.trainer.world_size * self.trainer.accumulate_grad_batches
         )
+    
+    @property
+    def train_num_batches_per_epoch(self) -> int:
+        return (
+            self.cfg['train_dataloader']['num_batches_per_epoch']
+            * self.trainer.accumulate_grad_batches
+        )
 
 
 def validation_step(
@@ -161,12 +168,8 @@ class MoiraiHandler:
             max_mask_ratio=0.5,
             max_dim=128,
             module=self.model,
-            loss_func=PackedNLLLoss(),
-            val_metric=PackedMSELoss(),
             lr=args.lr,
             weight_decay=args.weight_decay,
-            beta1=0.9,
-            beta2=0.98,
             num_training_steps=args.max_steps,
             num_warmup_steps=0
         )

@@ -1,4 +1,4 @@
-size: 'base'
+size: 'small'
 patch_size: 'auto'
 num_samples: 100
 target_dim: 2

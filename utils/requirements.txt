@@ -2,6 +2,7 @@ numpy
 pandas
 torch
 pytorch-lightning
+lightning
 neuralforecast
 statsforecast
 datasets

@@ -16,22 +16,24 @@ class MoiraiExp(Experiment):
     def __init__(self, args, i):
         super(MoiraiExp, self).__init__(args)
 
-        # # callbacks
-        # print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
-        # es = EarlyStopping(
-        #     monitor='val_loss',
-        #     patience=args.patience,
-        #     min_delta=args.min_improvement,
-        #     mode='min'
-        # )
-        # mc = ModelCheckpoint(
-        #     monitor='val_loss',
-        #     filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
-        #     save_top_k=1,
-        #     mode='min',
-        # )
+        # callbacks
+        print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
+        es = EarlyStopping(
+            monitor='val_loss',
+            patience=args.patience,
+            min_delta=args.min_improvement,
+            mode='min',
+            verbose=True
+        )
+        mc = ModelCheckpoint(
+            dirpath=f'args.save_dir/{args.dataset_name}_{args.horizon}/moirai',
+            monitor='val_loss',
+            filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
+            save_top_k=1,
+            mode='min'
+        )
 
-        # self.callbacks = [es, mc]
+        self.callbacks = [es, mc]
 
         # model parameters
         print(f"Loading model parameters from '{args.configs[i]}'")
@@ -93,18 +95,19 @@ class MoiraiExp(Experiment):
         trainer = pl.Trainer(
             logger=self.logger,
             callbacks=self.callbacks if hasattr(self, 'callbacks') else None,
-            max_steps=self.args.max_steps,
-            max_epochs=self.args.max_epochs,
-            accelerator=self.args.accelerator,
+            # max_steps=self.args.max_steps, # 5000
+            max_epochs=self.args.max_epochs, # 1000
+            accelerator=self.args.accelerator, 
             log_every_n_steps=self.args.log_interval,
         )
         self.trainer = trainer
+        
 
         self.moirai.train(trainer, self.train_set, self.val_set, self.params)
 
-        # save model
-        print(f"Saving model to '{self.args.save_dir}'")
-        torch.save(self.moirai.model.state_dict(), f"{self.args.save_dir}/moirai_{self.args.dataset_name}_{self.args.horizon}.pt")
+        # # save model
+        # print(f"Saving model to '{self.args.save_dir}'")
+        # torch.save(self.moirai.model.state_dict(), f"{self.args.save_dir}/moirai_{self.args.dataset_name}_{self.args.horizon}.pt")
 
     def test(self):
         labels, forecasts = self.moirai.predict(self.test_set)
