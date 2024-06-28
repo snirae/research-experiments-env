@@ -21,13 +21,18 @@ class MoiraiExp(Experiment):
 
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
-        es = EarlyStopping(
-            monitor='val_loss',
-            patience=args.patience,
-            min_delta=args.min_improvement,
-            mode='min',
-            verbose=True
-        )
+        callbacks = []
+        
+        if args.early_stopping:
+            es = EarlyStopping(
+                monitor='val_loss',
+                patience=args.patience,
+                min_delta=args.min_improvement,
+                mode='min',
+                verbose=True
+            )
+            callbacks.append(es)
+
         mc = ModelCheckpoint(
             dirpath=f'{args.save_dir}/{args.dataset_name}_{args.horizon}/moirai',
             monitor='val_loss',
@@ -35,8 +40,9 @@ class MoiraiExp(Experiment):
             save_top_k=1,
             mode='min'
         )
+        callbacks.append(mc)
 
-        self.callbacks = [es, mc]
+        self.callbacks = callbacks
 
         # model parameters
         print(f"Loading model parameters from '{args.configs[i]}'")
@@ -110,7 +116,7 @@ class MoiraiExp(Experiment):
         self.moirai.train(trainer, self.train_set, self.val_set, self.params)
 
     def test(self):
-        if self.train:
+        if self.args.train and self.args.early_stopping:
             # load best model
             print(f"Loading best model from '{self.args.save_dir}'")
             best_path = self.callbacks[1].best_model_path

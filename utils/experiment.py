@@ -36,20 +36,19 @@ class Experiment:
     # train and test abstract methods
     @abstractmethod
     def train(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def test(self):
-        pass
+        raise NotImplementedError
 
     def run(self):
         print("\n\nStarting the experiment...")
-        print(f"Training the models {self.args.models}")
 
         if self.args.train:
+            print(f"Training the models {self.args.models}")
             print(f"Saving checkpoints to '{self.args.save_dir}'")
-            print(f"Training for {self.args.max_steps} steps/ {self.args.max_epochs} epochs")
-            print()
+            print(f"Training for {self.args.max_steps} steps / {self.args.max_epochs} epochs\n")
 
             self.train()
 
