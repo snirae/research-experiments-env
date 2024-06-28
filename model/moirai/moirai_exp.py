@@ -80,11 +80,11 @@ class MoiraiExp(Experiment):
             logger = WandbLogger(save_dir=args.log_dir,
                                  project=args.project if args.project else f'{args.dataset_name}_{args.horizon}',
                                  entity=args.entity,
-                                 name=f'moirai_{args.dataset_name}_{args.horizon}')
+                                 name=f'moirai_{params["size"]}')
         elif args.logger == "tensorboard":
             logger = TensorBoardLogger(args.log_dir,
                                        name=f'{args.dataset_name}_{args.horizon}',
-                                       version=f'moirai_{args.dataset_name}_{args.horizon}')
+                                       version=f'moirai_{params["size"]}')
         else:
             raise ValueError(f"Logger '{args.logger}' not supported")
         

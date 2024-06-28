@@ -23,8 +23,8 @@ configs:
   # - "./model/tsmixer.json"
 
 data_path: "./data/ETTh1.csv"
-
 time_col: "date"
+batch_size: 128
 
 max_steps: 5000
 max_epochs: 100
