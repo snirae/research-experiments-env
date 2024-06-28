@@ -234,6 +234,8 @@ class MoiraiHandler:
         return tss, forecasts
     
     def load_from_checkpoint(self, checkpoint_path):
+        d_model = 384 if self.size == 'small' else 1024 if self.size == 'large' else 768
+        num_layers = 6 if self.size == 'small' else 24 if self.size == 'large' else 12
         self.finetune = MoiraiFinetune.load_from_checkpoint(checkpoint_path,
                                                             module_kwargs={
                                                                 'distr_output': MixtureOutput(
@@ -241,7 +243,12 @@ class MoiraiHandler:
                                                                                 NormalFixedScaleOutput(),
                                                                                 NegativeBinomialOutput(),
                                                                                 LogNormalOutput()]),
-                                                                'patch_sizes': tuple([8, 16, 32, 64, 128])
+                                                                'patch_sizes': tuple([8, 16, 32, 64, 128]),
+                                                                'd_model': d_model,
+                                                                'num_layers': num_layers,
+                                                                'max_seq_len': 512,
+                                                                'attn_dropout_p': 0.0,
+                                                                'dropout_p': 0.0,
                                                             },
                                                             min_patches=2,
                                                             min_mask_ratio=0.15,
