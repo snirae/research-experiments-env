@@ -48,7 +48,7 @@ class Experiment:
 
         if self.args.train:
             print(f"Saving checkpoints to '{self.args.save_dir}'")
-            print(f"Training for {self.args.max_steps} steps")
+            print(f"Training for {self.args.max_steps} steps/ {self.args.max_epochs} epochs")
             print()
 
             self.train()

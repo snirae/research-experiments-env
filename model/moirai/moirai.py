@@ -257,7 +257,8 @@ class MoiraiHandler:
                                                             lr=self.args.lr,
                                                             weight_decay=self.args.weight_decay,
                                                             num_training_steps=self.args.max_steps,
-                                                            num_warmup_steps=0)
+                                                            num_warmup_steps=0,
+                                                            strict=False)
         self.finetune.module = self.model
         
         print(f"Loaded best model")

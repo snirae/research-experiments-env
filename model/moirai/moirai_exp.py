@@ -16,6 +16,9 @@ class MoiraiExp(Experiment):
     def __init__(self, args, i):
         super(MoiraiExp, self).__init__(args)
 
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
         es = EarlyStopping(
@@ -99,6 +102,7 @@ class MoiraiExp(Experiment):
             max_epochs=self.args.max_epochs, # 1000
             accelerator=self.args.accelerator, 
             log_every_n_steps=self.args.log_interval,
+            precision=32,
         )
         self.trainer = trainer
         
