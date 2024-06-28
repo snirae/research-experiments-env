@@ -26,7 +26,7 @@ class MoiraiExp(Experiment):
             verbose=True
         )
         mc = ModelCheckpoint(
-            dirpath=f'args.save_dir/{args.dataset_name}_{args.horizon}/moirai',
+            dirpath=f'{args.save_dir}/{args.dataset_name}_{args.horizon}/moirai',
             monitor='val_loss',
             filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
             save_top_k=1,
