@@ -110,11 +110,12 @@ class MoiraiExp(Experiment):
         # torch.save(self.moirai.model.state_dict(), f"{self.args.save_dir}/moirai_{self.args.dataset_name}_{self.args.horizon}.pt")
 
     def test(self):
-        # load best model
-        print(f"Loading best model from '{self.args.save_dir}'")
-        best_path = self.callbacks[1].best_model_path
-        self.moirai.load_from_checkpoint(best_path)
-        
+        if self.train:
+            # load best model
+            print(f"Loading best model from '{self.args.save_dir}'")
+            best_path = self.callbacks[1].best_model_path
+            self.moirai.load_from_checkpoint(best_path)
+
         labels, forecasts = self.moirai.predict(self.test_set)
         
         mse = np.mean((labels - forecasts) ** 2)
