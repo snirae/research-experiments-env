@@ -2,6 +2,7 @@
 
 import pandas as pd
 import json
+import yaml
 import numpy as np
 import logging
 import wandb
@@ -56,7 +57,12 @@ class NFExp(Experiment):
         configs = []
         for config in args.configs:
             with open(config, "r") as file:
-                configs.append(json.load(file))
+                if config.endswith(".yaml"):
+                    configs.append(yaml.safe_load(file))
+                elif config.endswith(".json"):
+                    configs.append(json.load(file))
+                else:
+                    raise ValueError(f"Unknown config file format: {config}")
 
         self.configs = configs
 
