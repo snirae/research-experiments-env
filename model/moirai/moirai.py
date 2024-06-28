@@ -1,6 +1,6 @@
 from uni2ts.model.moirai import MoiraiFinetune, MoiraiForecast, MoiraiModule
-from uni2ts.loss.packed import PackedNLLLoss, PackedMSELoss
 from uni2ts.data.loader import DataLoader, Collate, PackCollate
+from uni2ts.distribution import MixtureOutput, StudentTOutput, NormalFixedScaleOutput, NegativeBinomialOutput, LogNormalOutput
 
 import numpy as np
 import torch
@@ -234,7 +234,23 @@ class MoiraiHandler:
         return tss, forecasts
     
     def load_from_checkpoint(self, checkpoint_path):
-        self.finetune = MoiraiFinetune.load_from_checkpoint(checkpoint_path)
+        self.finetune = MoiraiFinetune.load_from_checkpoint(checkpoint_path,
+                                                            module_kwargs={
+                                                                'distr_output': MixtureOutput(
+                                                                    components=[StudentTOutput(),
+                                                                                NormalFixedScaleOutput(),
+                                                                                NegativeBinomialOutput(),
+                                                                                LogNormalOutput()]),
+                                                                'patch_sizes': tuple([8, 16, 32, 64, 128])
+                                                            },
+                                                            min_patches=2,
+                                                            min_mask_ratio=0.15,
+                                                            max_mask_ratio=0.5,
+                                                            max_dim=128,
+                                                            lr=self.args.lr,
+                                                            weight_decay=self.args.weight_decay,
+                                                            num_training_steps=self.args.max_steps,
+                                                            num_warmup_steps=0)
         self.finetune.module = self.model
         
         print(f"Loaded best model")
