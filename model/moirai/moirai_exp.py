@@ -112,10 +112,9 @@ class MoiraiExp(Experiment):
     def test(self):
         # load best model
         print(f"Loading best model from '{self.args.save_dir}'")
-        self.moirai.finetune.load_from_checkpoint(
-            self.callbacks[1].best_model_path,
-            strict=False
-        )
+        best_path = self.callbacks[1].best_model_path
+        self.moirai.load_from_checkpoint(best_path)
+        
         labels, forecasts = self.moirai.predict(self.test_set)
         
         mse = np.mean((labels - forecasts) ** 2)

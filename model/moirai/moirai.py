@@ -232,3 +232,9 @@ class MoiraiHandler:
         tss = np.stack([ts.values[-PDT:] for ts in tss]).squeeze()
 
         return tss, forecasts
+    
+    def load_from_checkpoint(self, checkpoint_path):
+        self.finetune = MoiraiFinetune.load_from_checkpoint(checkpoint_path)
+        self.finetune.module = self.model
+        
+        print(f"Loaded best model")
