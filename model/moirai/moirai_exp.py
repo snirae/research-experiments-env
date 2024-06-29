@@ -2,6 +2,7 @@ import yaml
 import numpy as np
 import wandb
 import torch
+import matplotlib.pyplot as plt
 
 import lightning as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -18,6 +19,30 @@ class MoiraiExp(Experiment):
 
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
+
+        # model parameters
+        print(f"Loading model parameters from '{args.configs[i]}'")
+        with open(args.configs[i], "r") as file:
+            params = yaml.safe_load(file)
+
+        self.params = params
+
+        # model
+        print(f"Loading model: moirai")
+        self.moirai = MoiraiHandler(
+            args,
+            size=params.get('size', 'small'),
+            patch_size=params.get('patch_size', 'auto'),
+            num_samples=params.get('num_samples', 100),
+            target_dim=params.get('target_dim', 2),
+            lora=params.get('lora', False)
+        )
+
+        model_name = f'moirai_{params["size"]}'
+        if params.get('lora', False):
+            model_name += '_lora'
+        elif args.train:
+            model_name += '_finetune'
 
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
@@ -36,31 +61,14 @@ class MoiraiExp(Experiment):
         mc = ModelCheckpoint(
             dirpath=f'{args.save_dir}/{args.dataset_name}_{args.horizon}/moirai',
             monitor='val_loss',
-            filename='moirai' + '-{epoch:02d}-{val_loss:.2f}',
+            filename=model_name + '-{epoch:02d}-{val_loss:.4f}',
             save_top_k=1,
-            mode='min'
+            mode='min',
+            save_weights_only=True,
         )
         callbacks.append(mc)
 
         self.callbacks = callbacks
-
-        # model parameters
-        print(f"Loading model parameters from '{args.configs[i]}'")
-        with open(args.configs[i], "r") as file:
-            params = yaml.safe_load(file)
-
-        self.params = params
-
-        # model
-        print(f"Loading model: moirai")
-        self.moirai = MoiraiHandler(
-            args,
-            size=params['size'],
-            patch_size=params['patch_size'],
-            num_samples=params['num_samples'],
-            target_dim=params['target_dim'],
-            lora=params['lora']
-        )
 
         # data
         print(f"Loading data from '{args.data_path}'")
@@ -89,11 +97,11 @@ class MoiraiExp(Experiment):
             logger = WandbLogger(save_dir=args.log_dir,
                                  project=args.project if args.project else f'{args.dataset_name}_{args.horizon}',
                                  entity=args.entity,
-                                 name=f'moirai_{params["size"]}' + ('_lora' if params['lora'] else ''))
+                                 name=model_name)
         elif args.logger == "tensorboard":
             logger = TensorBoardLogger(args.log_dir,
                                        name=f'{args.dataset_name}_{args.horizon}',
-                                       version=f'moirai_{params["size"]}' + ('_lora' if params['lora'] else ''))
+                                       version=model_name)
         else:
             raise ValueError(f"Logger '{args.logger}' not supported")
         
@@ -116,7 +124,7 @@ class MoiraiExp(Experiment):
         self.moirai.train(trainer, self.train_set, self.val_set, self.params)
 
     def test(self):
-        if self.args.train and self.args.early_stopping:
+        if self.args.train:
             # load best model
             print(f"Loading best model from '{self.args.save_dir}'")
             best_path = self.callbacks[1].best_model_path
@@ -131,3 +139,32 @@ class MoiraiExp(Experiment):
 
         # logging
         self.logger.log_metrics({'MSE': mse, 'MAE': mae})
+
+        # plot
+        if self.args.save_plots:
+            labels = labels.reshape(-1, labels.shape[-1])  # predction_length, num_series
+            forecasts = forecasts.reshape(-1, forecasts.shape[-1])  # predction_length, num_series
+
+            # take last 1k steps
+            labels = labels[-1000:]
+            forecasts = forecasts[-1000:]
+
+            fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
+            for i in range(labels.shape[-1]):
+                ax[i].plot(labels[:, i], label='True')
+                ax[i].plot(forecasts[:, i], label='Forecast')
+                ax[i].legend()
+                ax[i].set_title(f'Forecast Plot - Series {i}')
+                ax[i].set_xlabel('Time')
+            
+            plt.tight_layout()
+            
+            # save to logger
+            if self.args.logger == 'wandb':
+                self.logger.log_image(key='forecast_plot', images=[fig])
+            else:
+                self.logger.experiment.add_figure('forecast_plot', fig)
+
+            print(f"Forecast plot saved.")
+
+            plt.close()
