@@ -146,19 +146,27 @@ def validation_step(
 
 
 class MoiraiHandler:
-    def __init__(self, args, size="base",
-                 patch_size='auto', num_samples=100, target_dim=2,
-                 lora=True):
-        self.model = MoiraiModule.from_pretrained(f"Salesforce/moirai-1.0-R-{size}")
+    def __init__(self, args, params):
         self.args = args
-        self.size = size
+        self.params = params
         self.horizon = args.horizon
         self.lookback = args.lookback
-        self.patch_size = patch_size
-        self.num_samples = num_samples
-        self.target_dim = target_dim
+        
+        if params is not None:
+            self.size = params.get("size", "small")
+            self.patch_size = params.get("patch_size", "auto")
+            self.num_samples = params.get("num_samples", 100)
+            self.target_dim = params.get("target_dim", 2)
+            self.lora = params.get("lora", False)
+        else:
+            self.size = "small"
+            self.patch_size = "auto"
+            self.num_samples = 100
+            self.target_dim = 2
+            self.lora = False
 
-        if lora:
+        self.model = MoiraiModule.from_pretrained(f"Salesforce/moirai-1.0-R-{self.size}")
+        if self.lora:
             self.model = add_lora(model=self.model)
 
         MoiraiFinetune.validation_step = validation_step
@@ -177,7 +185,27 @@ class MoiraiHandler:
 
         self.train_transform_map = self.finetune.train_transform_map
 
-    def train(self, trainer, train_set, val_set, cfg):
+    def train(self, trainer, train_set, val_set):
+        if self.params is not None:
+            cfg = self.params
+        else:
+            cfg = DictConfig(
+                {
+                    "train_dataloader": {
+                        "batch_size": self.args.batch_size,
+                        "shuffle": True,
+                        "num_batches_per_epoch": None,
+                        "collate_fn": None,
+                    },
+                    "val_dataloader": {
+                        "batch_size": self.args.batch_size,
+                        "shuffle": False,
+                        "num_batches_per_epoch": None,
+                        "collate_fn": None,
+                    },
+                }
+            )
+        
         max_len = 512
         seq_fields = self.finetune.seq_fields
         pad_func_map = self.finetune.pad_func_map
@@ -234,6 +262,5 @@ class MoiraiHandler:
         return tss, forecasts
     
     def load_from_checkpoint(self, checkpoint_path):
-        # load model's state_dict
         self.finetune.load_state_dict(torch.load(checkpoint_path)['state_dict'])
         self.model = self.finetune.module

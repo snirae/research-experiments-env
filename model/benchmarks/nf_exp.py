@@ -28,8 +28,9 @@ class NFExp(Experiment):
 
         # data
         print(f"Loading data from '{args.data_path}'")
-        self.train_df, self.test_df, self.scaler = load_dataset_for_nf(args.data_path, args.time_col, args.test_split, args.norm)
+        self.train_df, self.test_df, self.scaler = load_dataset_for_nf(args.data_path, args.time_col, args.test_split, args.norm, is_local=args.is_local)
         freq = pd.infer_freq(self.train_df['ds'].unique())
+        n_series = len(self.train_df['unique_id'].unique())
 
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
@@ -37,17 +38,19 @@ class NFExp(Experiment):
         for model_name in args.models:
             if args.early_stopping:
                 e = EarlyStopping(
-                        monitor='valid_loss',
-                        patience=args.patience,
-                        min_delta=args.min_improvement,
-                        mode='min'
-                    )
-            mc = ModelCheckpoint(
                     monitor='valid_loss',
-                    filename=f'{model_name}' + '-{epoch:02d}-{valid_loss:.2f}',
-                    save_top_k=1,
-                    mode='min',
+                    patience=args.patience,
+                    min_delta=args.min_improvement,
+                    mode='min'
                 )
+            mc = ModelCheckpoint(
+                dirpath=f'{args.save_dir}/{args.dataset_name}_{args.horizon}/{model_name}',
+                monitor='valid_loss',
+                filename=f'{model_name}' + '-{epoch:02d}-{valid_loss:.2f}',
+                save_top_k=1,
+                mode='min',
+                save_weights_only=True
+            )
             callbacks.append([e, mc])
 
         self.callbacks = callbacks
@@ -56,13 +59,16 @@ class NFExp(Experiment):
         print(f"Loading models parameters from '{args.configs}'")
         configs = []
         for config in args.configs:
-            with open(config, "r") as file:
-                if config.endswith(".yaml"):
-                    configs.append(yaml.safe_load(file))
-                elif config.endswith(".json"):
-                    configs.append(json.load(file))
-                else:
-                    raise ValueError(f"Unknown config file format: {config}")
+            if config is not None:
+                with open(config, "r") as file:
+                    if config.endswith(".yaml"):
+                        configs.append(yaml.safe_load(file))
+                    elif config.endswith(".json"):
+                        configs.append(json.load(file))
+                    else:
+                        raise ValueError(f"Unknown config file format: {config}")
+            else:
+                configs.append(None)
 
         self.configs = configs
 
@@ -73,6 +79,7 @@ class NFExp(Experiment):
             params=configs,
             config=args,
             freq=freq,
+            n_series=n_series,
             loss=loss,
             optimizer=self.optimizer,
             optimizer_kwargs=self.optimizer_kwargs,

@@ -1,28 +1,19 @@
 models:
-  - "MOIRAI"
-  # - "PatchTST"
-  # - "DLinear"
-  # - "TimesNet"
-  # - "TFT"
-  # - "NBEATS"
-  # - "NHITS"
+  # - "MOIRAI": "./model/moirai.yaml"
 
-  # - "TSMixer"
-  # - "iTransformer"
+  - "PatchTST"
+  - "DLinear"
+  - "TimesNet"
+  - "TFT"
+  - "NBEATS"
+  - "NHITS"
 
-configs:
-  - "./model/moirai.yaml"
-  # - "./model/patchtst.json"
-  # - "./model/patchtst.json"
-  # - "./model/patchtst.json"
-  # - "./model/patchtst.json"
-  # - "./model/patchtst.json"
-  # - "./model/patchtst.json"
+  - "TSMixer"
+  - "iTransformer"
 
-  # - "./model/tsmixer.json"
-  # - "./model/tsmixer.json"
-
-data_path: "./data/ETTh1.csv"
+# data_path: "./data/ETTh1.csv"
+data_path: "HZMETRO"
+is_local: false
 time_col: "date"
 batch_size: 128
 

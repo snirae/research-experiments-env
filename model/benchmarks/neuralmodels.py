@@ -9,6 +9,7 @@ from neuralforecast.common._base_windows import BaseWindows
 from neuralforecast.common._base_multivariate import BaseMultivariate
 
 import numpy as np
+import inspect
 
 
 def load_model(model_name):
@@ -24,7 +25,7 @@ def load_model(model_name):
 
 
 class NFHandler:
-    def __init__(self, models, params, config, freq,
+    def __init__(self, models, params, config, freq, n_series,
                  loss, optimizer, optimizer_kwargs, callbacks):
         
         NeuralForecast.fit = wrapper(args=config)
@@ -35,6 +36,7 @@ class NFHandler:
         self.params = params
         self.config = config
         self.freq = freq
+        self.n_series = n_series
 
         self.loss = loss
         self.optimizer = optimizer
@@ -58,6 +60,12 @@ class NFHandler:
     def _construct_model(self, model_name, params, callbacks):
         args = self.config
         model_class = load_model(model_name)
+
+        if params is None:
+            params = {'h': args.horizon, 'input_size': args.lookback}
+            if 'n_series' in inspect.signature(model_class.__init__).parameters:
+                params['n_series'] = self.n_series
+
         print(f"Creating model '{model_name}' with parameters: {params}")
         model = model_class(**params,
                             

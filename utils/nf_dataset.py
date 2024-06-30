@@ -4,7 +4,7 @@ import pandas as pd
 from datasets import load_dataset
 from sklearn.preprocessing import StandardScaler
 
-from utils.moirai_dataset import get_pandas_dataframe
+from utils.moirai_dataset import get_pandas_dataframe, remove_nan
 
 
 def prepare_dataset_for_nf(df, time_col, test_split=0.1, scale=True):
@@ -67,6 +67,12 @@ def load_dataset_for_nf(data_path, time_col=None, test_split=0.1, scale=True,
         data = data.to_pandas()
     else:
         data = get_pandas_dataframe(data_path)
+        data = data.set_index('date')
+        data.index = pd.to_datetime(data.index)
+
+        data = remove_nan(data)
+
+        data.reset_index(inplace=True)
         time_col = 'date'
     
     train_data, test_data, scaler = prepare_dataset_for_nf(data, time_col, test_split, scale)

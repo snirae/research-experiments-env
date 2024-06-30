@@ -22,8 +22,11 @@ class MoiraiExp(Experiment):
 
         # model parameters
         print(f"Loading model parameters from '{args.configs[i]}'")
-        with open(args.configs[i], "r") as file:
-            params = yaml.safe_load(file)
+        if args.configs[i] is not None:
+            with open(args.configs[i], "r") as file:
+                params = yaml.safe_load(file)
+        else:
+            params = None
 
         self.params = params
 
@@ -31,11 +34,7 @@ class MoiraiExp(Experiment):
         print(f"Loading model: moirai")
         self.moirai = MoiraiHandler(
             args,
-            size=params.get('size', 'small'),
-            patch_size=params.get('patch_size', 'auto'),
-            num_samples=params.get('num_samples', 100),
-            target_dim=params.get('target_dim', 2),
-            lora=params.get('lora', False)
+            params
         )
 
         model_name = f'moirai_{params["size"]}'
@@ -121,7 +120,7 @@ class MoiraiExp(Experiment):
         self.trainer = trainer
         
 
-        self.moirai.train(trainer, self.train_set, self.val_set, self.params)
+        self.moirai.train(trainer, self.train_set, self.val_set)
 
     def test(self):
         if self.args.train:

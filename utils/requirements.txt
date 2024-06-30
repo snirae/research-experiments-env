@@ -1,10 +1,10 @@
 numpy
 pandas
+matplotlib
 torch
 pytorch-lightning
 lightning
 neuralforecast
-statsforecast
 datasets
 scikit-learn
 wandb
