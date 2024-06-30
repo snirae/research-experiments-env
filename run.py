@@ -88,6 +88,22 @@ if __name__ == "__main__":
             for key, value in config.items():
                 setattr(args, key, value)
 
+        models, configs = [], []
+        for model in args.models:
+            if isinstance(model, dict):
+                models.append(model.keys()[0])
+                configs.append(model[model.keys()[0]])
+            else:
+                models.append(model)
+                configs.append(None)
+
+        args.models = models
+        args.configs = configs
+    else:
+        for i in range(len(args.configs)):
+            if not (args.configs[i].endswith(".yaml") or args.configs[i].endswith(".json")):
+                args.configs[i] = None
+
     # running the experiment
     lowered_models = [model.lower() for model in args.models]
     if 'moirai' in lowered_models:
