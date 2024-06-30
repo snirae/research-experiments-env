@@ -91,8 +91,8 @@ if __name__ == "__main__":
         models, configs = [], []
         for model in args.models:
             if isinstance(model, dict):
-                models.append(model.keys()[0])
-                configs.append(model[model.keys()[0]])
+                models.append(list(model.keys())[0])
+                configs.append(model[list(model.keys())[0]])
             else:
                 models.append(model)
                 configs.append(None)
