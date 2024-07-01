@@ -144,9 +144,9 @@ class MoiraiExp(Experiment):
             labels = labels.reshape(-1, labels.shape[-1])  # predction_length, num_series
             forecasts = forecasts.reshape(-1, forecasts.shape[-1])  # predction_length, num_series
 
-            # take last 1k steps
-            labels = labels[-1000:]
-            forecasts = forecasts[-1000:]
+            # take last 1k steps and first 15 series
+            labels = labels[-1000:, :15]
+            forecasts = forecasts[-1000:, :15]
 
             fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
             for i in range(labels.shape[-1]):
