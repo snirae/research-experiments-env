@@ -171,10 +171,10 @@ class MoiraiHandler:
 
         MoiraiFinetune.validation_step = validation_step
         self.finetune = MoiraiFinetune(
-            min_patches=2,
+            min_patches=1,  # 2,
             min_mask_ratio=0.15,
             max_mask_ratio=0.5,
-            max_dim=128,
+            max_dim=1000,  # 128,
             module=self.model,
             lr=args.lr,
             weight_decay=args.weight_decay,
