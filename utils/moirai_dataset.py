@@ -192,7 +192,7 @@ def load_dataset_for_moirai(data_path, time_col, transform_map,
       
       train, val, test = df_to_hfs(df, val_split=val_split, test_split=test_split, scale=scale)
 
-      path = f'../data/{data_path}'
+      path = f'./data/{data_path}'
       name = data_path
 
    # save train, val to disk
