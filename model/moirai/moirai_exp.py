@@ -5,7 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 
 import lightning as pl
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
 from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 
 from utils.experiment import Experiment
@@ -65,18 +65,22 @@ class MoiraiExp(Experiment):
             mode='min',
             save_weights_only=True,
         )
-        callbacks.append(mc)
 
+        lr_monitor = LearningRateMonitor(logging_interval='step')
+
+        callbacks.extend([mc, lr_monitor])
         self.callbacks = callbacks
 
         # data
         print(f"Loading data from '{args.data_path}'")
-        train_set, val_set, test_df = load_dataset_for_moirai(
+        train_set, val_set, test_set, metadata = load_dataset_for_moirai(
             args.data_path,
             time_col=args.time_col,
-            transform_map=self.moirai.train_transform_map,
+            train_transform_map=self.moirai.train_transform_map,
+            val_transform_map=self.moirai.val_transform_map,
             val_split=args.val_split,
             test_split=args.test_split,
+            context=args.lookback,
             horizon=args.horizon,
             scale=args.norm,
             is_local=args.is_local
@@ -84,7 +88,8 @@ class MoiraiExp(Experiment):
         
         self.train_set = train_set
         self.val_set = val_set
-        self.test_set = test_df
+        self.test_set = test_set
+        self.metadata = metadata
 
         # logger
         print(f"Creating logger: {args.logger}")
@@ -128,42 +133,44 @@ class MoiraiExp(Experiment):
             print(f"Loading best model from '{self.args.save_dir}'")
             best_path = self.callbacks[1].best_model_path
             self.moirai.load_from_checkpoint(best_path)
-
-        labels, forecasts = self.moirai.predict(self.test_set)
         
-        mse = np.mean((labels - forecasts) ** 2)
-        mae = np.mean(np.abs(labels - forecasts))
+        res = self.moirai.evaluate(test_set=self.test_set, metadata=self.metadata)
 
-        print(f"MOIRAI - MSE: {mse:.4f}, MAE: {mae:.4f}")
+        # labels, forecasts = self.moirai.predict(self.test_set, BSZ=self.args.batch_size)
+        
+        # mse = np.mean((labels - forecasts) ** 2)
+        # mae = np.mean(np.abs(labels - forecasts))
 
-        # logging
-        self.logger.log_metrics({'MSE': mse, 'MAE': mae})
+        # print(f"MOIRAI - MSE: {mse:.4f}, MAE: {mae:.4f}")
 
-        # plot
-        if self.args.save_plots:
-            labels = labels.reshape(-1, labels.shape[-1])  # predction_length, num_series
-            forecasts = forecasts.reshape(-1, forecasts.shape[-1])  # predction_length, num_series
+        # # logging
+        # self.logger.log_metrics({'MSE': mse, 'MAE': mae})
 
-            # take last 1k steps and first 15 series
-            labels = labels[-1000:, :15]
-            forecasts = forecasts[-1000:, :15]
+        # # plot
+        # if self.args.save_plots:
+        #     labels = labels.reshape(-1, labels.shape[-1])  # predction_length, num_series
+        #     forecasts = forecasts.reshape(-1, forecasts.shape[-1])  # predction_length, num_series
 
-            fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
-            for i in range(labels.shape[-1]):
-                ax[i].plot(labels[:, i], label='True')
-                ax[i].plot(forecasts[:, i], label='Forecast')
-                ax[i].legend()
-                ax[i].set_title(f'Forecast Plot - Series {i}')
-                ax[i].set_xlabel('Time')
+        #     # take last 1k steps and first 15 series
+        #     labels = labels[-1000:, :15]
+        #     forecasts = forecasts[-1000:, :15]
+
+        #     fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
+        #     for i in range(labels.shape[-1]):
+        #         ax[i].plot(labels[:, i], label='True')
+        #         ax[i].plot(forecasts[:, i], label='Forecast')
+        #         ax[i].legend()
+        #         ax[i].set_title(f'Forecast Plot - Series {i}')
+        #         ax[i].set_xlabel('Time')
             
-            plt.tight_layout()
+        #     plt.tight_layout()
             
-            # save to logger
-            if self.args.logger == 'wandb':
-                self.logger.log_image(key='forecast_plot', images=[fig])
-            else:
-                self.logger.experiment.add_figure('forecast_plot', fig)
+        #     # save to logger
+        #     if self.args.logger == 'wandb':
+        #         self.logger.log_image(key='forecast_plot', images=[fig])
+        #     else:
+        #         self.logger.experiment.add_figure('forecast_plot', fig)
 
-            print(f"Forecast plot saved.")
+        #     print(f"Forecast plot saved.")
 
-            plt.close()
+        #     plt.close()

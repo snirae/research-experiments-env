@@ -6,11 +6,43 @@ from pathlib import Path
 
 import datasets
 from gluonts.dataset.pandas import PandasDataset
+from gluonts.dataset.split import TestData, split
+from gluonts.dataset.common import _FileDataset
+
 from datasets import Features, Sequence, Value, load_dataset
 from sklearn.preprocessing import StandardScaler
 
-from uni2ts.data.builder.simple import SimpleDatasetBuilder
+from uni2ts.data.builder.simple import SimpleDatasetBuilder, SimpleEvalDatasetBuilder
+from uni2ts.eval_util.data import MetaData
+from uni2ts.eval_util._hf_dataset import HFDataset
 
+
+def get_custom_eval_dataset(
+    dataset_name: str,
+    storage_path: Path,
+    offset: int,
+    windows: int,
+    distance: int,
+    prediction_length: int,
+    mode: None = None,
+) -> tuple[TestData, MetaData]:
+    hf_dataset = HFDataset(dataset_name, storage_path=storage_path)
+    dataset = _FileDataset(
+        hf_dataset, freq=hf_dataset.freq, one_dim_target=hf_dataset.target_dim == 1
+    )
+    _, test_template = split(dataset, offset=offset)
+    test_data = test_template.generate_instances(
+        prediction_length,
+        windows=windows,
+        distance=distance,
+    )
+    metadata = MetaData(
+        freq=hf_dataset.freq,
+        target_dim=hf_dataset.target_dim,
+        prediction_length=prediction_length,
+        split="test",
+    )
+    return test_data, metadata
 
 def splitter(df, val_split=0.1, test_split=0.1):
    """
@@ -75,14 +107,20 @@ def remove_nan(df: pd.DataFrame):
 def df_to_hfs(df, val_split=0.1, test_split=0.1, scale=True):
    if scale:
       # scale the numerical columns
+      print("Scaling the data")
+      
       scaler = StandardScaler()
       numerical_cols = df.select_dtypes(include=[np.number]).columns
       df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
 
    train, val, test = splitter(df, val_split, test_split)
 
+   test_size = len(test)
+   val_size = len(val)
+
    train_gen = generate_generator(train)
    val_gen = generate_generator(val)
+   test_gen = generate_generator(test)
 
    features = Features(
       dict(
@@ -101,19 +139,23 @@ def df_to_hfs(df, val_split=0.1, test_split=0.1, scale=True):
    val_dataset = datasets.Dataset.from_generator(
       val_gen, features=features
    )
+   test_dataset = datasets.Dataset.from_generator(
+      test_gen, features=features
+   )
 
-   return train_dataset, val_dataset, test
+   return train_dataset, val_dataset, test_dataset, test_size, val_size
 
-def prepare_dataset_for_moirai(data_path, time_col, scale=True):
+def prepare_dataset_for_moirai(data_path, time_col,
+                               val_split=0.1, test_split=0.1, scale=True):
    file_type = data_path.split(".")[-1]
    data = load_dataset(file_type, data_files=data_path)['train']
-   df = data.to_pandas()   
+   df = data.to_pandas()
    df = df.set_index(time_col)
    df.index = pd.to_datetime(df.index)
 
    df = remove_nan(df)
 
-   return df_to_hfs(df, scale=scale)
+   return df_to_hfs(df, val_split=val_split, test_split=test_split, scale=scale)
 
 def get_dataset(dataset_name): # downloads specific dataset in GluonTS format
     dataset_path = "Salesforce/lotsa_data"
@@ -169,12 +211,13 @@ def get_pandas_dataframe(dataset_name):  # returns dataframe with normal structu
 
     return df
 
-def load_dataset_for_moirai(data_path, time_col, transform_map,
+def load_dataset_for_moirai(data_path, time_col, train_transform_map, val_transform_map,
                             val_split=0.1, test_split=0.1,
-                            horizon=96, scale=True, is_local=True):
+                            context=96, horizon=96, scale=True, is_local=True):
    if is_local:
-      hf_dataset = prepare_dataset_for_moirai(data_path, time_col=time_col, scale=scale)
-      train, val, test = hf_dataset
+      hf_dataset = prepare_dataset_for_moirai(data_path, time_col=time_col,
+                                              val_split=val_split, test_split=test_split, scale=scale)
+      train, val, test, test_size, val_size = hf_dataset
 
       path = data_path.split("/")[:-1]
       path = "/".join(path)
@@ -190,19 +233,39 @@ def load_dataset_for_moirai(data_path, time_col, transform_map,
 
       df = remove_nan(df)
       
-      train, val, test = df_to_hfs(df, val_split=val_split, test_split=test_split, scale=scale)
+      train, val, test, test_size, val_size = df_to_hfs(df, val_split=val_split, test_split=test_split, scale=scale)
 
       path = f'./data/{data_path}'
       name = data_path
 
-   # save train, val to disk
+   # save to disk
    train.save_to_disk(f"{path}/{name}_train")
    val.save_to_disk(f"{path}/{name}_val")
+   test.save_to_disk(f"{path}/{name}_test")
 
-   # uni2ts TimeSeriesDataset format for train and val
-   SimpleDatasetBuilder.__post_init__ = lambda self: setattr(self, 'storage_path', Path(path))
-
-   train_dataset = SimpleDatasetBuilder(dataset=f'{name}_train', weight=1000).load_dataset(transform_map)
-   val_dataset = SimpleDatasetBuilder(dataset=f'{name}_val', weight=1000).load_dataset(transform_map)
+   # uni2ts TimeSeriesDataset format
+   train_dataset = SimpleDatasetBuilder(dataset=f'{name}_train',
+                                        weight=1000,
+                                        storage_path=Path(path)
+                                        ).load_dataset(train_transform_map)
    
-   return train_dataset, val_dataset, test
+   val_dataset = SimpleEvalDatasetBuilder(dataset=f'{name}_val',
+                                          offset=0,
+                                          windows=val_size // horizon,
+                                          distance=1,
+                                          prediction_length=horizon,
+                                          context_length=context,
+                                          patch_size=32,
+                                          storage_path=Path(path)
+                                          ).load_dataset(val_transform_map)
+
+   test_dataset, metadata = get_custom_eval_dataset(dataset_name=f'{name}_test',
+                                                    storage_path=Path(path),
+                                                   #  offset=-test_size,
+                                                   offset=14400,
+                                                   #  windows=test_size // horizon,
+                                                      windows=2785,
+                                                    distance=1,
+                                                    prediction_length=horizon)
+      
+   return train_dataset, val_dataset, test_dataset, metadata

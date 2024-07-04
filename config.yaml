@@ -11,9 +11,8 @@ models:
   - "TSMixer"
   - "iTransformer"
 
-# data_path: "./data/ETTh1.csv"
-data_path: "HZMETRO"
-is_local: false
+data_path: "./data/ETTh1.csv"
+is_local: true
 time_col: "date"
 batch_size: 128
 

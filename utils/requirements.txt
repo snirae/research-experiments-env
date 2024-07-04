@@ -11,3 +11,4 @@ wandb
 uni2ts
 peft
 huggingface-hub
+gluonts

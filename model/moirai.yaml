@@ -10,4 +10,4 @@ train_dataloader:
 val_dataloader:
   shuffle: false
 
-lora: true
+lora: false
