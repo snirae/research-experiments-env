@@ -114,7 +114,7 @@ def df_to_hfs(df, val_split=0.1, test_split=0.1, scale=True):
       df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
 
    train, val, test = splitter(df, val_split, test_split)
-
+   
    test_size = len(test)
    val_size = len(val)
 
@@ -249,23 +249,26 @@ def load_dataset_for_moirai(data_path, time_col, train_transform_map, val_transf
                                         storage_path=Path(path)
                                         ).load_dataset(train_transform_map)
    
-   val_dataset = SimpleEvalDatasetBuilder(dataset=f'{name}_val',
-                                          offset=0,
-                                          windows=val_size // horizon,
-                                          distance=1,
-                                          prediction_length=horizon,
-                                          context_length=context,
-                                          patch_size=32,
-                                          storage_path=Path(path)
-                                          ).load_dataset(val_transform_map)
+   # val_dataset = SimpleEvalDatasetBuilder(dataset=f'{name}_val',
+   #                                        offset=context,
+   #                                        windows=val_size // horizon,
+   #                                        distance=1,
+   #                                        prediction_length=horizon,
+   #                                        context_length=context,
+   #                                        patch_size=32,
+   #                                        storage_path=Path(path)
+   #                                        ).load_dataset(val_transform_map)
+
+   val_dataset = SimpleDatasetBuilder(dataset=f'{name}_val',
+                                        weight=1000,
+                                        storage_path=Path(path)
+                                        ).load_dataset(train_transform_map)
 
    test_dataset, metadata = get_custom_eval_dataset(dataset_name=f'{name}_test',
                                                     storage_path=Path(path),
-                                                   #  offset=-test_size,
-                                                   offset=14400,
-                                                   #  windows=test_size // horizon,
-                                                      windows=2785,
-                                                    distance=1,
+                                                    offset=-test_size,
+                                                    windows=test_size // horizon,
+                                                    distance=horizon,
                                                     prediction_length=horizon)
       
    return train_dataset, val_dataset, test_dataset, metadata

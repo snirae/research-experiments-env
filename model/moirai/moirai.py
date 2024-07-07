@@ -1,18 +1,13 @@
 from uni2ts.model.moirai import MoiraiFinetune, MoiraiForecast, MoiraiModule
 from uni2ts.data.loader import DataLoader, Collate, PackCollate
-from uni2ts.module.packed_scaler import PackedNOPScaler
-from uni2ts.eval_util.evaluation import evaluate_model
+from uni2ts.eval_util.evaluation import evaluate_model, evaluate_forecasts
 
-import numpy as np
 import torch
 from typing import Callable, Optional
 from omegaconf import DictConfig
 from torch.utils.data import Dataset, DistributedSampler
 import lightning as pl
-import pandas as pd
 
-from gluonts.dataset.pandas import PandasDataset
-from gluonts.evaluation.backtest import make_evaluation_predictions
 from gluonts.ev.metrics import MSE, MAE
 from gluonts.time_feature import get_seasonality
 
@@ -225,47 +220,6 @@ class MoiraiHandler:
         trainer.fit(self.finetune,
                     datamodule=data_module)
     
-    def predict(self, test_df, BSZ=1):
-        ds = PandasDataset(test_df,
-                           target=test_df.columns,
-                           freq=pd.infer_freq(test_df.index))
-        
-        moirai_forecast = MoiraiForecast(
-            module=self.model,
-            prediction_length=self.horizon,
-            context_length=self.lookback,
-            patch_size=self.patch_size,
-            num_samples=self.num_samples,
-            target_dim=self.target_dim,
-            feat_dynamic_real_dim=ds.num_feat_dynamic_real,
-            past_feat_dynamic_real_dim=ds.num_past_feat_dynamic_real,
-        )
-        predictor = moirai_forecast.create_predictor(BSZ, self.args.accelerator)
-
-        forecasts = []
-        tss = []
-        PDT = self.horizon
-        for i in range(self.lookback, len(test_df), PDT):
-            context_label = test_df.iloc[i - self.lookback:i + PDT]
-            ds = PandasDataset(context_label,
-                               target=list(test_df.columns),
-                               freq=pd.infer_freq(test_df.index))
-            
-            forecast_it, ts_it = make_evaluation_predictions(
-                dataset=ds,  # test dataset
-                predictor=predictor,  # trained model
-                num_samples=self.num_samples,  # number of sample paths to draw
-            )
-            forecasts.extend(list(forecast_it))
-            tss.extend(list(ts_it))
-
-        # forecasts shape: (num_samples, num_series, prediction_length)
-        # tss shape: (num_series, prediction_length)
-        forecasts = np.stack([f.samples for f in forecasts]).squeeze().mean(axis=1)
-        tss = np.stack([ts.values[-PDT:] for ts in tss]).squeeze()
-
-        return tss, forecasts
-    
     def load_from_checkpoint(self, checkpoint_path):
         self.finetune.load_state_dict(torch.load(checkpoint_path)['state_dict'])
         self.model = self.finetune.module
@@ -281,6 +235,41 @@ class MoiraiHandler:
             feat_dynamic_real_dim=metadata.feat_dynamic_real_dim,
             past_feat_dynamic_real_dim=metadata.past_feat_dynamic_real_dim,
         )
+    
+    def predict(self, test_set, metadata, min_batch_size=1):
+        batch_size = self.args.batch_size
+        while True:
+            model = self.get_moirai_forecast(metadata)
+            try:
+                predictor = model.create_predictor(batch_size, self.args.accelerator)
+                forecasts = predictor.predict(test_set.input)
+
+                res = evaluate_forecasts(
+                    forecasts=forecasts,
+                    test_data=test_set,
+                    metrics=[MSE(), MAE()],
+                    batch_size=batch_size,
+                    axis=None,
+                    mask_invalid_label=True,
+                    allow_nan_forecast=False,
+                    seasonality=get_seasonality(metadata.freq),
+                )
+                forecasts = predictor.predict(test_set.input)
+
+                break
+            except torch.cuda.OutOfMemoryError:
+                print(
+                    f"OutOfMemoryError at batch_size {batch_size}, reducing to {batch_size//2}"
+                )
+                batch_size //= 2
+                if batch_size < min_batch_size:
+                    print(
+                        f"batch_size {batch_size} smaller than "
+                        f"min_batch_size {min_batch_size}, ending evaluation"
+                    )
+                    break
+            
+        return forecasts, res
 
     def evaluate(self, test_set, metadata, min_batch_size=1):
         batch_size = self.args.batch_size
@@ -299,7 +288,6 @@ class MoiraiHandler:
                     allow_nan_forecast=False,
                     seasonality=get_seasonality(metadata.freq),
                 )
-                print(res)
 
                 break
             except torch.cuda.OutOfMemoryError:

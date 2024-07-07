@@ -43,6 +43,11 @@ class MoiraiExp(Experiment):
         elif args.train:
             model_name += '_finetune'
 
+        if args.train:
+            model_name += f'_lr{args.lr}'
+        
+        self.model_name = model_name
+
         # callbacks
         print(f"Creating callbacks with early stopping: {args.early_stopping}, patience: {args.patience}, min improvement: {args.min_improvement}")
         callbacks = []
@@ -91,6 +96,12 @@ class MoiraiExp(Experiment):
         self.test_set = test_set
         self.metadata = metadata
 
+        # import pickle
+        # with open('test_set.pkl', 'wb') as f:
+        #     pickle.dump(test_set, f)
+
+        # import sys; sys.exit()
+
         # logger
         print(f"Creating logger: {args.logger}")
         if args.logger == "wandb":
@@ -124,8 +135,10 @@ class MoiraiExp(Experiment):
         )
         self.trainer = trainer
         
-
         self.moirai.train(trainer, self.train_set, self.val_set)
+
+        if self.args.logger == 'wandb':
+            wandb.save(f'{self.args.save_dir}/{self.args.dataset_name}_{self.args.horizon}/moirai/{self.model_name}-*')
 
     def test(self):
         if self.args.train:
@@ -134,43 +147,44 @@ class MoiraiExp(Experiment):
             best_path = self.callbacks[1].best_model_path
             self.moirai.load_from_checkpoint(best_path)
         
-        res = self.moirai.evaluate(test_set=self.test_set, metadata=self.metadata)
+        forecasts, res = self.moirai.predict(self.test_set, self.metadata)
 
-        # labels, forecasts = self.moirai.predict(self.test_set, BSZ=self.args.batch_size)
+        mse, mae = res.iloc[0, 0], res.iloc[0, 1]
+
+        print(f"{self.model_name} - MSE: {mse:.4f}, MAE: {mae:.4f}")
+
+        # logging
+        self.logger.log_metrics({'MSE': mse, 'MAE': mae})
+
+        # plot
+        if self.args.save_plots:
+            labels = np.array([l['target'] for l in self.test_set.label])
+            forecasts = np.array([f.samples for f in forecasts])
+
+            labels = labels.reshape(-1, labels.shape[-2])  # predction_length, num_series
+            forecasts = forecasts.mean(axis=1).reshape(labels.shape)  # predction_length, num_series
+
+            # take last 1k steps and first 15 series
+            labels = labels[-1000:, :15]
+            forecasts = forecasts[-1000:, :15]
+
+            fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
+            for i in range(labels.shape[-1]):
+                ax[i].plot(labels[:, i], label='True')
+                ax[i].plot(forecasts[:, i], label='Forecast')
+                ax[i].legend()
+                ax[i].set_title(f'Forecast Plot - Series {i}')
+                ax[i].set_xlabel('Time')
+            
+            plt.tight_layout()
+            
+            # save to logger
+            if self.args.logger == 'wandb':
+                self.logger.log_image(key='forecast_plot', images=[fig])
+            else:
+                self.logger.experiment.add_figure('forecast_plot', fig)
+
+            print(f"Forecast plot saved.")
+
+            plt.close()
         
-        # mse = np.mean((labels - forecasts) ** 2)
-        # mae = np.mean(np.abs(labels - forecasts))
-
-        # print(f"MOIRAI - MSE: {mse:.4f}, MAE: {mae:.4f}")
-
-        # # logging
-        # self.logger.log_metrics({'MSE': mse, 'MAE': mae})
-
-        # # plot
-        # if self.args.save_plots:
-        #     labels = labels.reshape(-1, labels.shape[-1])  # predction_length, num_series
-        #     forecasts = forecasts.reshape(-1, forecasts.shape[-1])  # predction_length, num_series
-
-        #     # take last 1k steps and first 15 series
-        #     labels = labels[-1000:, :15]
-        #     forecasts = forecasts[-1000:, :15]
-
-        #     fig, ax = plt.subplots(nrows=labels.shape[-1], ncols=1, figsize=(100, 5 * labels.shape[-1]))
-        #     for i in range(labels.shape[-1]):
-        #         ax[i].plot(labels[:, i], label='True')
-        #         ax[i].plot(forecasts[:, i], label='Forecast')
-        #         ax[i].legend()
-        #         ax[i].set_title(f'Forecast Plot - Series {i}')
-        #         ax[i].set_xlabel('Time')
-            
-        #     plt.tight_layout()
-            
-        #     # save to logger
-        #     if self.args.logger == 'wandb':
-        #         self.logger.log_image(key='forecast_plot', images=[fig])
-        #     else:
-        #         self.logger.experiment.add_figure('forecast_plot', fig)
-
-        #     print(f"Forecast plot saved.")
-
-        #     plt.close()
