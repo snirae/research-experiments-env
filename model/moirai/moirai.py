@@ -175,7 +175,7 @@ class MoiraiHandler:
             max_mask_ratio=0.5,
             max_dim=1000,  # 128,
             module=self.model,
-            lr=args.lr,
+            lr=float(args.lr),
             weight_decay=args.weight_decay,
             num_training_steps=args.max_steps,
             num_warmup_steps=0
