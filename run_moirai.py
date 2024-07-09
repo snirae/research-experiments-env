@@ -2,11 +2,11 @@ import argparse
 import os
 
 
-def write_config(config, data_path, is_local, lr=1e-3):
+def write_config(config, data_path, is_local, lr=1e-3, path='.'):
     dataset = data_path.split('/')[-1].split('.')[0]
 
     size, lora, batch_size, train = config
-    with open(f'./config_{dataset}.yaml', 'w') as f:
+    with open(f'{path}/config_{dataset}.yaml', 'w') as f:
         f.write(f"""
 models:
   - "MOIRAI": "./moirai_{dataset}.yaml"
@@ -31,9 +31,9 @@ lr: {lr}
                 """)
 
 
-def write_moirai_config(config, dataset):
+def write_moirai_config(config, dataset, path='.'):
     size, lora, batch_size, train = config
-    with open(f'./moirai_{dataset}.yaml', 'w') as f:
+    with open(f'{path}/moirai_{dataset}.yaml', 'w') as f:
         f.write(f"""
 size: '{size}'
 patch_size: 'auto'
@@ -51,7 +51,7 @@ lora: {lora}
                 """)
         
 
-def run_exp(data_path, is_local):
+def run_exp(data_path, is_local, run_path='.'):
     dataset = data_path.split('/')[-1].split('.')[0]
 
     sizes = ['small', 'base', 'large'] * 3
@@ -66,25 +66,25 @@ def run_exp(data_path, is_local):
             lrs = [10**-3, 10**-4, 10**-5, 10**-6]
 
             for lr in lrs:
-                write_config(config, data_path, is_local, lr)
-                write_moirai_config(config, dataset)
+                write_config(config, data_path, is_local, lr, run_path)
+                write_moirai_config(config, dataset, run_path)
 
                 print(f"\n\n\n\nRunning experiment {i + 1}/{len(cfgs)}")
                 size, lora, batch_size, train = config
                 print(f"Size: {size}, Lora: {lora}, Batch size: {batch_size}, Train: {train}\n\n\n")
                 
                 # os.system("conda activate snir-env")
-                os.system(f"python run.py --config config_{dataset}.yaml")
+                os.system(f"python {run_path}/run.py --config {run_path}/config_{dataset}.yaml")
         else:
-            write_config(config, data_path, is_local)
-            write_moirai_config(config, dataset)
+            write_config(config, data_path, is_local, path=run_path)
+            write_moirai_config(config, dataset, path=run_path)
 
             print(f"\n\n\n\nRunning experiment {i + 1}/{len(cfgs)}")
             size, lora, batch_size, train = config
             print(f"Size: {size}, Lora: {lora}, Batch size: {batch_size}, Train: {train}\n\n\n")
             
             # os.system("conda activate snir-env")
-            os.system(f"python run.py --config config_{dataset}.yaml")
+            os.system(f"python {run_path}/run.py --config {run_path}/config_{dataset}.yaml")
 
 
 if __name__ == "__main__":
@@ -92,8 +92,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--data-path", type=str, default="./data/ETTh1.csv", help="Path to data")
     parser.add_argument("--is-local", type=bool, default=1, help="Run locally or on cloud")
+    parser.add_argument("--run-path", type=str, default="./", help="Path of run.py")
 
     args = parser.parse_args()
     args.is_local = bool(args.is_local)
 
-    run_exp(args.data_path, args.is_local)
+    run_exp(args.data_path, args.is_local, args.run_path)
