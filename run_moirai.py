@@ -11,7 +11,7 @@ def write_config(config, data_path, is_local, lr=1e-3, path='.'):
 models:
   - "MOIRAI": "./moirai_{dataset}.yaml"
 
-data_path: "{data_path}"
+data_path: "path/{data_path}"
 time_col: "date"
 is_local: {is_local}
 batch_size: {batch_size}
