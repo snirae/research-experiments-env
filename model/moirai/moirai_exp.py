@@ -139,8 +139,8 @@ class MoiraiExp(Experiment):
         
         self.moirai.train(trainer, self.train_set, self.val_set)
 
-        if self.args.logger == 'wandb':
-            wandb.save(f'{self.args.save_dir}/{self.args.dataset_name}_{self.args.horizon}/moirai/{self.model_name}-*')
+        # if self.args.logger == 'wandb':
+        #     wandb.save(f'{self.args.save_dir}/{self.args.dataset_name}_{self.args.horizon}/moirai/{self.model_name}-*')
 
     def test(self):
         if self.args.train:
