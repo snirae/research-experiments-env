@@ -36,13 +36,21 @@ class MoiraiExp(Experiment):
             args,
             params
         )
+        if args.ft_ckpt is not None:
+            self.moirai.load_from_checkpoint(args.ft_ckpt)
+
+            # unfreeze all weights
+            for param in self.moirai.model.parameters():
+                param.requires_grad = True
 
         model_name = f'moirai_{params["size"]}'
         if params.get('lora', False):
             model_name += '_lora'
         elif args.train:
             model_name += '_finetune'
-
+       
+        if args.ft_ckpt is not None:
+            model_name += '_ckpt'
         if args.train:
             model_name += f'_lr{args.lr}'
         
@@ -95,12 +103,6 @@ class MoiraiExp(Experiment):
         self.val_set = val_set
         self.test_set = test_set
         self.metadata = metadata
-
-        # import pickle
-        # with open('test_set.pkl', 'wb') as f:
-        #     pickle.dump(test_set, f)
-
-        # import sys; sys.exit()
 
         # logger
         print(f"Creating logger: {args.logger}")

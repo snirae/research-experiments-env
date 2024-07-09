@@ -44,6 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="Weight decay")
     parser.add_argument("--optimizer", type=str, default="adam", help="Optimizer to use")
     parser.add_argument("--loss", type=str, default="mse", help="Loss function to use")
+    parser.add_argument("--ft-ckpt", type=str, default=None, help="Path to the checkpoint to finetune from")
 
     # callbacks
     parser.add_argument("--early-stopping", type=int, default=1, help="Whether to use early stopping (0-False, 1-True)")
