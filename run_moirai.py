@@ -73,7 +73,7 @@ def run_exp(data_path, is_local):
                 size, lora, batch_size, train = config
                 print(f"Size: {size}, Lora: {lora}, Batch size: {batch_size}, Train: {train}\n\n\n")
                 
-                os.system("conda activate snir-env")
+                # os.system("conda activate snir-env")
                 os.system(f"python run.py --config config_{dataset}.yaml")
         else:
             write_config(config, data_path, is_local)
@@ -83,7 +83,7 @@ def run_exp(data_path, is_local):
             size, lora, batch_size, train = config
             print(f"Size: {size}, Lora: {lora}, Batch size: {batch_size}, Train: {train}\n\n\n")
             
-            os.system("conda activate snir-env")
+            # os.system("conda activate snir-env")
             os.system(f"python run.py --config config_{dataset}.yaml")
 
 
